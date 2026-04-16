@@ -347,7 +347,9 @@ class Client_GC():
                 
         for key in self.prototype.keys():
         
-            self.prototype[key] /= max([norm(self.prototype[key]), 1])
+            # old v incompatible with gpu: self.prototype[key] /= max([norm(self.prototype[key]), 1])
+            norm_value = torch.norm(self.prototype[key])
+            self.prototype[key] /= torch.max(norm_value, torch.ones_like(norm_value))
             import math
 
             
