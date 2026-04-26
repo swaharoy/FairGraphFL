@@ -9,6 +9,7 @@ import setupGC
 from training import *
 
 
+### BASELINES
 def process_selftrain(clients, server, local_epoch):
     print("Self-training ...")
     df = pd.DataFrame()
@@ -24,7 +25,6 @@ def process_selftrain(clients, server, local_epoch):
     df.to_csv(outfile)
     print(f"Wrote to file: {outfile}")
 
-
 def process_fedavg(clients, server):
     print("\nDone setting up FedAvg devices.")
 
@@ -38,60 +38,7 @@ def process_fedavg(clients, server):
     print(f"Wrote to file: {outfile}")
 
 
-def process_fedprox(clients, server, mu):
-    print("\nDone setting up FedProx devices.")
-
-    print("Running FedProx ...")
-    frame = run_fedprox(clients, server, args.num_rounds, args.local_epoch, mu, samp=None)
-    if args.repeat is None:
-        outfile = os.path.join(outpath, f'accuracy_fedprox_mu{mu}_GC{suffix}.csv')
-    else:
-        outfile = os.path.join(outpath, "repeats", f'{args.repeat}_accuracy_fedprox_mu{mu}_GC{suffix}.csv')
-    frame.to_csv(outfile)
-    print(f"Wrote to file: {outfile}")
-
-
-def process_gcfl(clients, server):
-    print("\nDone setting up GCFL devices.")
-    print("Running GCFL ...")
-
-    if args.repeat is None:
-        outfile = os.path.join(outpath, f'accuracy_gcfl_GC{suffix}.csv')
-    else:
-        outfile = os.path.join(outpath, "repeats", f'{args.repeat}_accuracy_gcfl_GC{suffix}.csv')
-
-    frame = run_gcfl(clients, server, args.num_rounds, args.local_epoch, EPS_1, EPS_2)
-    frame.to_csv(outfile)
-    print(f"Wrote to file: {outfile}")
-
-
-def process_gcflplus(clients, server):
-    print("\nDone setting up GCFL devices.")
-    print("Running GCFL plus ...")
-
-    if args.repeat is None:
-        outfile = os.path.join(outpath, f'accuracy_gcflplus_GC{suffix}.csv')
-    else:
-        outfile = os.path.join(outpath, "repeats", f'{args.repeat}_accuracy_gcflplus_GC{suffix}.csv')
-
-    frame = run_gcflplus(clients, server, args.num_rounds, args.local_epoch, EPS_1, EPS_2, args.seq_length, args.standardize)
-    frame.to_csv(outfile)
-    print(f"Wrote to file: {outfile}")
-
-
-def process_gcflplusdWs(clients, server):
-    print("\nDone setting up GCFL devices.")
-    print("Running GCFL plus with dWs ...")
-
-    if args.repeat is None:
-        outfile = os.path.join(outpath, f'accuracy_gcflplusDWs_GC{suffix}.csv')
-    else:
-        outfile = os.path.join(outpath, "repeats", f'{args.repeat}_accuracy_gcflplusDWs_GC{suffix}.csv')
-
-    frame = run_gcflplus_dWs(clients, server, args.num_rounds, args.local_epoch, EPS_1, EPS_2, args.seq_length, args.standardize)
-    frame.to_csv(outfile)
-    print(f"Wrote to file: {outfile}")
-
+### Versions of our model:
 
 def process_prototype(clients, server):
     print("\nDone setting up prototype devices.")
@@ -99,60 +46,19 @@ def process_prototype(clients, server):
     frame = run_prototype(clients, server, args.num_rounds, args.local_epoch, samp=None)
     #outfile = os.path.join()
 
-def process_protoreput(clients, server):
-    print("\nDone setting up prototype devices.")
-    print("Running fed prototype ...")
-    frame = run_protoreput(clients, server, args.num_rounds, args.device, samp=None)
-
 
 def process_protoreput2(clients, server):
     print("\nDone setting up prototype devices.")
     print("Running fed prototype ...")
-    frame = run_protoreput2(clients, server, args.num_rounds, args.device, args.disable_dp, samp=None)
-
-# def process_protoreput4(clients, server):
-#     print("\nDone setting up prototype devices.")
-#     print("Running fed prototype ...")
-#     frame = run_protoreput4(clients, server, args.num_rounds, args.device, args.disable_dp, samp=None)
-
-
-
-
-
-def process_protoreput3(clients, server):
-    print("\nDone setting up prototype devices.")
-    print("Running fed prototype ...")
-    frame = run_protoreput3(clients, server, args.num_rounds, args.device, samp=None)
+    frame = run_prototype_with_reputation_weighted_aggregation(clients, server, args.num_rounds, args.device, args.disable_dp, samp=None)
 
 def process_reput(clients, server):
     print('\nDone setting up devices.')
     print('Running fed reput ...')
     frame = run_reput(clients, server, args.num_rounds, args.local_epoch, samp=None)
 
-def process_reput2(clients, server):
-    print('\nDone setting up devices.')
-    print('Running fed reput ...')
-    frame = run_reput2(clients, server, args.num_rounds, args.local_epoch, samp=None)
-
-def process_reput3(clients, server):
-    print('\nDone setting up devices.')
-    print('Running fed reput ...')
-    frame = run_reput3(clients, server, args.num_rounds, 1, samp=None)
-
-
-
-
-
 
 if __name__ == '__main__':
-
-
-
-
-
-
-
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str, default='cpu',
                         help='CPU / GPU device.')
@@ -264,15 +170,6 @@ if __name__ == '__main__':
 
     init_clients, init_server, init_idx_clients = setupGC.setup_devices(splitedData, args)
     print("\nDone setting up devices.")
-    
-
-    
-
-    
-
-
-    
-
 
     process_protoreput2(clients=copy.deepcopy(init_clients), server=copy.deepcopy(init_server))
     

@@ -19,11 +19,106 @@ class Server():
         self.global_prototype_code = {}
         self.weight = {}
         self.code_prototype = {}
-        self.code = {}
+        self.code = {} # idx: motif_key
 
+    def aggregate_prototype(self, clients):
+        # corresponds to eq 12
 
+        # Populate vocab {motif: count_across_all_clients } 
+        # and num_client {key : num_of_clients_with _key}
+        for client in clients:
+            for key in client.motif_count.keys():
+                if key not in self.vocab.keys():
+                    self.vocab[key] = client.motif_count[key]
+                    self.num_client[key] = 1
+                else:
+                    self.vocab[key] += client.motif_count[key]
+                    self.num_client[key] += 1
+        
+        # Construct global prototype
+        for client in clients:
+            for key in client.motif_count.keys():
+                if key not in self.global_prototype.keys():
+                    self.global_prototype[key] = client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]                   
+                else:    
+                    self.global_prototype[key] += client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]
+                    
+        for key in self.global_prototype.keys():
+            self.global_prototype[key] = self.global_prototype[key].data
 
+        for i, motif in enumerate(list(self.global_prototype.keys())):
+            self.global_prototype_code[motif] = i
+            self.code[i] = motif
+    
+    def aggregate_prototype_weighted_by_client_reput_per_motif(self, clients):
+        """
+            Requires that server.update_reput(clients) has been called at least once prior.
+        """
+        # this means that the uodates to the prototypes are informed by the similarity between
+        # two prortypes that should be the same
+        for i, client in enumerate(clients):
+            for key in client.motif_count.keys():
+                if key not in self.global_prototype.keys(): 
+                    self.global_prototype[key] = client.rs[key] * client.prototype[key]
+                    self.weight[key] = client.rs[key]
+                else:
+                    self.global_prototype[key] += client.rs[key] * client.prototype[key]
+                    self.weight[key] += client.rs[key]
 
+        for key in self.global_prototype.keys():
+            self.global_prototype[key] /= self.weight[key]
+
+        for key in self.global_prototype.keys():
+            self.global_prototype[key] = self.global_prototype[key].data
+            
+        for i, motif in enumerate(list(self.global_prototype.keys())):
+            self.global_prototype_code[motif] = i
+            self.code[i] = motif
+        
+    def update_reput(self, clients):
+        for key in self.global_prototype.keys():
+            weight = 0
+            for client in clients:
+                if key in client.rs.keys():
+                    weight += client.rs[key]
+            for client in clients:
+                if key in client.rs.keys():
+                    client.rs[key] /= weight           
+
+    def reput3_prototype(self, clients):
+        for client in clients:
+            for key in client.motif_count.keys():
+                if key not in self.vocab.keys():
+                    self.vocab[key] = client.motif_count[key]
+                    self.num_client[key] = 1
+                else:
+                    self.vocab[key] += client.motif_count[key]
+                    self.num_client[key] += 1
+        for i, client in enumerate(clients):
+            for key in client.motif_count.keys():
+                if key not in self.global_prototype.keys():
+                    self.global_prototype[key] = client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]
+                else:
+                    self.global_prototype[key] += client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]   
+        for key in self.global_prototype.keys():
+            self.global_prototype[key] = self.global_prototype[key].data
+        for i, motif in enumerate(list(self.global_prototype.keys())):
+            self.global_prototype_code[motif] = i
+            self.code[i] = motif
+            
+    def clear_prototype(self):
+        self.vocab = {}
+        
+        self.whole_node_count = {}
+        self.num_client = {}
+        self.global_prototype = {}
+        self.global_prototype_code = {}
+        self.code_prototype = {}
+
+        
+        self.weight = {}
+
+    ### UNUSED: 
 
     def randomSample_clients(self, all_clients, frac):
         return random.sample(all_clients, int(len(all_clients) * frac))
@@ -110,37 +205,6 @@ class Server():
                               {name: params[name].data.clone() for name in params},
                               [accuracies[i] for i in idcs])]
 
-
-
-    def aggregate_prototype(self, clients):
-        for client in clients:
-            for key in client.motif_count.keys():
-                if key not in self.vocab.keys():
-                    self.vocab[key] = client.motif_count[key]
-                    self.num_client[key] = 1
-                else:
-                    self.vocab[key] += client.motif_count[key]
-                    self.num_client[key] += 1
-        for client in clients:
-            for key in client.motif_count.keys():
-                if key not in self.global_prototype.keys():
-                    self.global_prototype[key] = client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]
-                    
-                else:
-                    
-                    self.global_prototype[key] += client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]
-                    
-        for key in self.global_prototype.keys():
-            self.global_prototype[key] = self.global_prototype[key].data
-
-        for i, motif in enumerate(list(self.global_prototype.keys())):
-            self.global_prototype_code[motif] = i
-            self.code[i] = motif
-
-
-
-
-
     def aggregate_code(self, clients):
         for client in clients:
             for key in client.motif_count.keys():
@@ -163,127 +227,7 @@ class Server():
             self.global_prototype_code[motif] = i
             self.code[i] = motif
 
-
-
-
-
-
-
-    
-
-
-    def reput_aggregate_prototype(self, rs, clients):
-        
-        for i, client in enumerate(clients):
-            
-            for key in client.motif_count.keys():
-                #weight = 0
-                if key not in self.global_prototype.keys():
-                    self.global_prototype[key] = rs[i] * client.prototype[key]
-                    
-                    self.weight[key] = rs[i]
-                else:
-                    self.global_prototype[key] += rs[i] * client.prototype[key]
-                    self.weight[key] += rs[i]
-        for key in self.global_prototype.keys():
-            self.global_prototype[key] /= self.weight[key]
-        for key in self.global_prototype.keys():
-            self.global_prototype[key] = self.global_prototype[key].data
-        for i, motif in enumerate(list(self.global_prototype.keys())):
-            self.global_prototype_code[motif] = i
-            self.code[i] = motif
-
-        
-        
-
-
-
-    def reput_aggregate_prototype2(self, rs, clients):
-        
-        for i, client in enumerate(clients):
-            
-            for key in client.motif_count.keys():
-                #weight = 0
-                if key not in self.global_prototype.keys():
-
-                    self.global_prototype[key] = client.rs[key] * client.prototype[key]
-                    self.weight[key] = client.rs[key]
-                else:
-                    self.global_prototype[key] += client.rs[key] * client.prototype[key]
-                    self.weight[key] += client.rs[key]
-        for key in self.global_prototype.keys():
-            self.global_prototype[key] /= self.weight[key]
-        for key in self.global_prototype.keys():
-            self.global_prototype[key] = self.global_prototype[key].data
-        for i, motif in enumerate(list(self.global_prototype.keys())):
-            self.global_prototype_code[motif] = i
-            self.code[i] = motif
-        
-        
-        
-    def update_reput(self, clients):
-        for key in self.global_prototype.keys():
-            weight = 0
-            for client in clients:
-                if key in client.rs.keys():
-                    weight += client.rs[key]
-            for client in clients:
-                if key in client.rs.keys():
-                    client.rs[key] /= weight
-    
-    def reput3_prototype(self, clients):
-        for client in clients:
-            for key in client.motif_count.keys():
-                if key not in self.vocab.keys():
-                    self.vocab[key] = client.motif_count[key]
-                    self.num_client[key] = 1
-                else:
-                    self.vocab[key] += client.motif_count[key]
-                    self.num_client[key] += 1
-        for i, client in enumerate(clients):
-            for key in client.motif_count.keys():
-                if key not in self.global_prototype.keys():
-                    self.global_prototype[key] = client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]
-                else:
-                    self.global_prototype[key] += client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]   
-        for key in self.global_prototype.keys():
-            self.global_prototype[key] = self.global_prototype[key].data
-        for i, motif in enumerate(list(self.global_prototype.keys())):
-            self.global_prototype_code[motif] = i
-            self.code[i] = motif
-            
-
-        
-                    
-                
-
-
-        
-
-
-
-            
-        
-
-
-        
-
-
-
-
-
-
-    def clear_prototype(self):
-        self.vocab = {}
-        
-        self.whole_node_count = {}
-        self.num_client = {}
-        self.global_prototype = {}
-        self.global_prototype_code = {}
-        self.code_prototype = {}
-
-        
-        self.weight = {}
+### UNUSED:     
 
 def flatten(source):
     return torch.cat([value.flatten() for value in source.values()])

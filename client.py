@@ -13,12 +13,13 @@ from opacus import PrivacyEngine
 from torch.linalg import norm
 from sklearn.cluster import KMeans
 import subprocess
+
 class Motif_graph():
     def __init__(self, graph, motif_dict, motif=None):
         self.graph = graph
-        
-        self.motif_dict = motif_dict
-        self.motif = motif 
+        self.motif_dict = motif_dict # dict: (motif) : freq
+        self.motif = motif # dict: (edge, weight) : (edge, edge)
+
 class MotifDataset(Dataset):
     def __init__(self, dataset):
         self.graph = dataset
@@ -44,8 +45,7 @@ class Client_GC():
         self.args = args
         self.graphs_train = graphs_train
         
-
-        self.W = {key: value for key, value in self.model.named_parameters()}
+        self.W = {key: value for key, value in self.model.named_parameters()}  # current model params
         self.dW = {key: torch.zeros_like(value) for key, value in self.model.named_parameters()}
         self.W_old = {key: value.data.clone() for key, value in self.model.named_parameters()}
 
@@ -58,41 +58,33 @@ class Client_GC():
         self.convWeightsNorm = 0.
         self.convDWsNorm = 0.
 
-
-        self.motif_vocab = {} 
-        self.motif_count = {} 
-        self.tf_idf = {}
-        self.motif_dataset = []
+        self.motif_vocab = {} # unique motifs
+        self.motif_count = {} # how often each motif occurs
+        self.tf_idf = {}      # term freq-inverse doc freq, how unique motif is to this client compared to others
+        self.motif_dataset = [] # array of MotifGraphs (recall each user has multiple graphs)
         self.avg_tf = {}
         self.prototype = {}
         self.prototype_code = {} 
         self.code_motif = {}
         self.motif_code = {} 
-        self.motif_dataset = []
+        self.motif_dataset = [] # TODO: duplicated
         self.motif_dict = []
         self.motifset_dict = []
-
 
         self.code_prototype = {} #motif_code: prototype
 
         self.simi = {}
-        self.rs = {} 
+        self.rs = {}            
         self.reput = 0
         self.payoff = 0
         self.reputation = []
 
         self.num_graphs = len(self.graphs_train)
         
-        
-        
-        
-        
     def motif_construction(self):
         
         self.motif_dataset = []
         
-        
-
         n = 0
         for graph in self.graphs_train:
             motif_freq = {} 
@@ -103,37 +95,21 @@ class Client_GC():
            
             _, label = torch.max(label, dim=1)
             
-          
-
             n += graph.num_nodes
 
-
-
-
-
-            
-           
-            
-            
             if graph.edge_attr is not None:
                 graph_net = to_networkx(graph, to_undirected=True, edge_attrs=["edge_attr"])
             else:
                 graph_net = to_networkx(graph, to_undirected=True)
             mcb = nx.cycle_basis(graph_net)
             
-                    
-
             mcb_tuple = [tuple(ele) for ele in mcb]
             for ele in mcb_tuple:
                 if len(ele) > 4:
                     mcb_tuple.remove(ele)
             
-            
-            
-
             edges = []
             for e in graph_net.edges():
-                
                 count = 0
                 for c in mcb_tuple:
                     if e[0] in set(c) and e[1] in set(c):
@@ -143,8 +119,6 @@ class Client_GC():
                     edges.append(e)
             edges = list(set(edges))
            
-
-
             for e in edges:
                 
                 weight = 1
@@ -177,14 +151,8 @@ class Client_GC():
                 if (c, weight) not in motif_idx:
                     motif_idx[(c, weight)] = [(e[0], e[1])]
                 
-                
-
-
-
-
             for m in mcb_tuple:
 
-                
                 weight = tuple(self.find_ring_weights(m, graph_net))
                 #print(weight)
                 ring = []
@@ -211,8 +179,6 @@ class Client_GC():
                         weight = self.shift_right(weight)
                 if (c, weight) not in motif_idx:
                     motif_idx[(c, weight)] = [m] 
-
-
 
                 for i in range(len(c)):
                     if (c, weight) in motif_freq:
@@ -255,16 +221,13 @@ class Client_GC():
         a = int(len(self.avg_tf) * self.args.beta)
         # a = int(len(self.avg_tf) * 1)
         
-        
         for i in range(a):
             rank_list.append(self.avg_tf[i])
         self.avg_tf = dict(rank_list)
-
         
         for key in list(self.motif_count.keys()):
             if key not in self.avg_tf:
                 self.motif_count.pop(key)
-
 
         for motif_graph in self.motif_dataset:
             for key in list(motif_graph.motif_dict.keys()):
@@ -281,104 +244,52 @@ class Client_GC():
             self.motifset_dict.append(motif_graph.motif_dict)
         print('finish constructing prototypes!')    
         
-
-        
-        
-        
-        
-
-
     def prototype_update(self):
-       
+        """
+        Generates and normalizes structural-semantic prototypes for the client.
+        
+        This function implements the mapping of graph structures (motifs) to their 
+        corresponding high-level feature representations (embeddings). It aggregates 
+        the local 'structural identity' of the client into a set of normalized vectors 
+        that are sent to the server to calculate reputation and similarity scores.
 
+        Attributes updated:
+            self.prototype (dict): A dictionary mapping motif keys to a single, 
+                normalized 1D tensor representing the 'average' embedding for 
+                that specific structure.
 
-
-
-
+        Note:
+            Corresponds to Equation 11 in the source paper. This function assumes 
+            motif_construction has already populated the motif dictionaries.
+        """
+        # corresponds to eq 11
 
         for idx, motif_graph in enumerate(self.motif_dataset):
             motif_graph.motif_dict = self.motifset_dict[idx]
         
-
-
-
-        
-            
-
-
         for motif_graph in self.motif_dataset:
             motif_graph.graph.to(self.args.device)
             self.model.concat = False
             _, x1, x2 = self.model(motif_graph.graph)
-           
-            
-            
-            
-            
-            x1 = x1.data
+            x1 = x1.data # graph embedding
           
-            
-
             for key in motif_graph.motif_dict.keys():
-                
                 self.prototype[key].append(x1)
 
+        # Take the mean of the embedding vectors
+        self.prototype_embedding_vector_mean() 
 
-            
-        
-        
+        # Normalize   
         for key in self.prototype.keys():
-            if len(self.prototype[key]) == 1:
-                self.prototype[key] = self.prototype[key][0].squeeze()
-            elif len(self.prototype[key]) > 1:
-                
-                c = self.prototype[key][0]
-                for i in range(1, len(self.prototype[key])):
-                    
-                    
-                    c = torch.cat((c, self.prototype[key][i]), dim=0)
-                self.prototype[key] = c
-                
-            
-                
-                self.prototype[key] = torch.mean(self.prototype[key], dim=0).data
-
-
-                
-        for key in self.prototype.keys():
-        
-            # old v incompatible with gpu: self.prototype[key] /= max([norm(self.prototype[key]), 1])
             norm_value = torch.norm(self.prototype[key])
             self.prototype[key] /= torch.max(norm_value, torch.ones_like(norm_value))
-            import math
-
-            
-            eps = 50
-            delta = 0.01
-            c = math.sqrt(2 * math.log(1.25 / delta))
-            theta = arccos(1 / self.num_graphs)
-            theta_ = theta / 2
-            de = 2 * sin(theta_)
-            sigma = c * de / eps
-
-
-
-            
-            noise = torch.normal(mean=0.,std=0.031/10,size=(1,64))[0].to(self.args.device)
-            
-            
-
-            
-                    
-    
-        
+             
     def clear_prototype(self):
         
         self.prototype_code = {} 
         self.motif_code = {} 
         self.prototype_code = {}
         
-    
     def download_code(self, server):
         for key in self.prototype.keys():
             #print(((0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0)) in server.global_prototype_code.keys())
@@ -386,37 +297,31 @@ class Client_GC():
         for key, value in self.prototype_code.items():
             self.code_motif[value] = key
         
-
-
     def prototype_train(self, server):
         self.model.concat = True
 
+        # Reset prototypes
         for key in self.motif_count.keys():
             self.prototype[key] = []
         
         for i, motif_graph in enumerate(self.motif_dataset):
             motif_graph.motif_dict = self.motifset_dict[i]
        
-        
-        
+        # For each motif_graph, assigning to motif_dict a tuple of all the motif_codes
         for motif_graph in self.motif_dataset:
-            
             motif_list = list(motif_graph.motif_dict.keys())
             motif_code = []
             for item in motif_list:
                 motif_code.append(self.prototype_code[item])
             motif_graph.motif_dict = tuple(motif_code)
-            
+       
+       # Maps the tuple of motif_codes    
         for motif_graph in self.motif_dataset:
             if motif_graph.motif_dict in self.motif_code.keys():
                 motif_graph.motif_dict = self.motif_code[motif_graph.motif_dict]
             else:
                 self.motif_code[motif_graph.motif_dict] = len(self.motif_code.keys())
                 motif_graph.motif_dict = self.motif_code[motif_graph.motif_dict]
-
-
-
-            
 
         dataset = MotifDataset(self.motif_dataset)
         
@@ -425,268 +330,67 @@ class Client_GC():
         self.backup = deepcopy(self.model)
         self.model.train()
         for batch in trainloader:
-            
             proto = {}
-            
+
             self.optimizer.zero_grad()
-            graph, motifs, indices = batch[0].to(self.args.device), batch[1].to(self.args.device), batch[2].to(self.args.device)
-            
-            pred, protos, emb = self.model(graph)
+            graph, motifs, _ = batch[0].to(self.args.device), batch[1].to(self.args.device), batch[2].to(self.args.device)
+            pred, protos, _ = self.model(graph)
             
             label = graph.y
             
             loss1 = self.model.loss(pred, label)
             loss2 = 0.
             loss_mse = nn.MSELoss()
+
+            # extracts codes from model results and updates corresponding prototype maps
             for i, motif in enumerate(motifs):
+                # maps the motif_idx back to the codes
                 motif_idx = motif.item()
                 motif_tuple = list(self.motif_code.keys())[motif_idx]
+
+
                 for idx in motif_tuple:
                     if idx not in proto.keys():
                         proto[idx] = []
-                        proto[idx].append(protos[i])
-                        self.prototype[self.code_motif[idx]].append(protos[i].unsqueeze(dim=0))
-                    else:
-                        proto[idx].append(protos[i])
-                        self.prototype[self.code_motif[idx]].append(protos[i].unsqueeze(dim=0))
-                        
-            
-            
 
+                    # proto maps CODE to array of new prototypes from model that correspond to CODE
+                    proto[idx].append(protos[i])
 
+                    # maps motif_key to list of new prototypeds from model
+                    self.prototype[self.code_motif[idx]].append(protos[i].unsqueeze(dim=0))
+
+            # Calculate new prototype embedding vector means          
             for key in proto.keys():
                 if len(proto[key]) == 1:
                     proto[key] = proto[key][0].squeeze()
                 elif len(proto[key]) > 1:
                     c = proto[key][0]
                     for i in range(1, len(proto[key])):
-                        
                         c = torch.cat((c, proto[key][i]), dim=0)
                     proto[key] = c
-                
                     proto[key] = torch.mean(proto[key], dim=0)
 
-
-
-        
-           
+            # Calculate distance between local and global prototypes
             proto_global = {}
-            
             for key in proto.keys():
                 proto_global[key] = server.global_prototype[server.code[key]].data
-            
-            for key in proto.keys():
-
-                #print(proto[key], proto_global[key])
-                
+            for key in proto.keys():                
                 loss2 += loss_mse(proto[key], proto_global[key]) / len(proto.keys())
         
+            # Loss function (eq 14)
             loss = loss1 + loss2 * self.args.lamb
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
 
-            
-        for key in self.prototype.keys():
-            if len(self.prototype[key]) == 1:
-                
-                self.prototype[key] = self.prototype[key][0].squeeze().data
-                
-            elif len(self.prototype[key]) > 1:
-                
-                c = self.prototype[key][0]
-                
-                for i in range(1, len(self.prototype[key])):
-                   
-                    
-                    
-                    c = torch.cat((c, self.prototype[key][i]), dim=0)
-                self.prototype[key] = c
-                
-          
-                
-                self.prototype[key] = torch.mean(self.prototype[key], dim=0).data
-
-
-
-
+        # Update client prototypes by computing embedding vector means
+        self.prototype_embedding_vector_mean()    
+    
 
         print('finish')
 
-
-    def dptrain(self, server):
-
-        for key in self.motif_count.keys():
-            self.prototype[key] = []
-        
-        for i, motif_graph in enumerate(self.motif_dataset):
-            motif_graph.motif_dict = self.motifset_dict[i]
-       
-        
-        
-        for motif_graph in self.motif_dataset:
-            
-            motif_list = list(motif_graph.motif_dict.keys())
-            motif_code = []
-            for item in motif_list:
-                motif_code.append(self.prototype_code[item])
-            motif_graph.motif_dict = tuple(motif_code)
-          
-        for motif_graph in self.motif_dataset:
-            if motif_graph.motif_dict in self.motif_code.keys():
-                motif_graph.motif_dict = self.motif_code[motif_graph.motif_dict]
-            else:
-                self.motif_code[motif_graph.motif_dict] = len(self.motif_code.keys())
-                motif_graph.motif_dict = self.motif_code[motif_graph.motif_dict]
-
-
-
-            
-
-            
-
-     
-        dataset = MotifDataset(self.motif_dataset)
-        
-        trainloader = DataLoader(dataset, batch_size=128, shuffle = True)
-        self.backup = deepcopy(self.model)
-
-
-
-
-        privacy_engine = PrivacyEngine()
-        model, optimizer, trainloader = \
-            privacy_engine.make_private(
-                module=self.model,
-                optimizer=self.optimizer,
-                data_loader=trainloader,
-                noise_multiplier=1.0,
-                max_grad_norm=1.0,
-            )
-        
-
-        model.train()
-        for batch in trainloader:
-            proto = {}
-            
-            optimizer.zero_grad()
-            graph, motifs = batch[0].to(self.args.device), batch[1].to(self.args.device)
-            pred, protos = model(graph)
-            
-
-         
-            label = graph.y
-            loss1 = F.nll_loss(pred, label)
-            loss2 = 0.
-            loss_mse = nn.MSELoss()
-            for i, motif in enumerate(motifs):
-                motif_idx = motif.item()
-                motif_tuple = list(self.motif_code.keys())[motif_idx]
-                for idx in motif_tuple:
-                    if idx not in proto.keys():
-                        proto[idx] = []
-                        proto[idx].append(protos[i])
-                        self.prototype[self.code_motif[idx]].append(protos[i].unsqueeze(dim=0))
-                    else:
-                        proto[idx].append(protos[i])
-                        self.prototype[self.code_motif[idx]].append(protos[i].unsqueeze(dim=0))
-                        
-            
-            
-
-
-            for key in proto.keys():
-                if len(proto[key]) == 1:
-                    proto[key] = proto[key][0].squeeze()
-                elif len(proto[key]) > 1:
-                    c = proto[key][0]
-                    for i in range(1, len(proto[key])):
-                        
-                        c = torch.cat((c, proto[key][i]), dim=0)
-                    proto[key] = c
-              
-                    proto[key] = torch.mean(proto[key], dim=0)
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-            
-
-                    
-            
-            proto_global = {}
-            
-            for key in proto.keys():
-                proto_global[key] = server.global_prototype[server.code[key]].data
-            
-            for key in proto.keys():
-
-                
-                loss2 += loss_mse(proto[key], proto_global[key]) / len(proto.keys())
-           
-            loss = loss1 + loss2 * self.args.lamb
-
-            
-
-            
-
-
-
-
-            loss1.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            loss2.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            
-            proto = {}
-       
-
-        # print('1')
-        for key in self.prototype.keys():
-            if len(self.prototype[key]) == 1:
-                
-                self.prototype[key] = self.prototype[key][0].squeeze().data
-                
-            elif len(self.prototype[key]) > 1:
-                #print(self.prototype[key])
-                c = self.prototype[key][0]
-                
-                for i in range(1, len(self.prototype[key])):
-                    #print(c)
-                    
-                    
-                    c = torch.cat((c, self.prototype[key][i]), dim=0)
-                self.prototype[key] = c
-                
-            #print(self.prototype)
-                
-                self.prototype[key] = torch.mean(self.prototype[key], dim=0).data
-
-
-
-
-
-        print('finish!')
-
-
-
-
-
-
     def cosine_similar(self, server):
-        
+        #  TODO: why implementing agent value per key?
         similarity = torch.zeros(len(self.prototype.keys())).to(self.args.device)
         for idx, key in enumerate(self.prototype.keys()):
             sim = F.cosine_similarity(self.prototype[key], server.global_prototype[key], 0, 1e-10)
@@ -706,7 +410,6 @@ class Client_GC():
         
         return reput
 
-
     @staticmethod
     def shift_right(l):
         if type(l) == int:
@@ -719,9 +422,6 @@ class Client_GC():
         else:
             print('ERROR!')
 
-
-
-
     @staticmethod
     def find_ring_weights(ring, g):
         weight_list = []
@@ -730,7 +430,6 @@ class Client_GC():
                 weight = g.get_edge_data(ring[i], ring[i+1])['edge_attr']
                 # weight = weight.index(max(weight))
                 weight = 1
-                
                 
             else:
                 weight = 1
@@ -745,7 +444,6 @@ class Client_GC():
         
         weight_list.append(weight)
         return weight_list
-    
     
     def download_from_server(self, server):
         self.gconvNames = server.W.keys()
@@ -872,10 +570,6 @@ def train_gc(model, dataloaders, optimizer, local_epoch, device):
 
             # print(torch.argmax(pred, dim=1).view(-1,1).shape)
 
-
-            
-             
-
             # acc_sum += torch.argmax(pred, dim=1).view(-1,1).eq(label).sum().item()
             acc_sum += pred.max(dim=1)[1].eq(label).sum().item()
             loss = model.loss(pred, label)
@@ -919,7 +613,6 @@ def eval_gc(model, test_loader, device):
         ngraphs += batch.num_graphs
 
     return total_loss/ngraphs, acc_sum/ngraphs
-
 
 def _prox_term(model, gconvNames, Wt):
     prox = torch.tensor(0., requires_grad=True)
@@ -986,3 +679,16 @@ def eval_gc_prox(model, test_loader, device, gconvNames, mu, Wt):
         ngraphs += batch.num_graphs
 
     return total_loss/ngraphs, acc_sum/ngraphs
+
+
+### MY FUNCS
+def prototype_embedding_vector_mean(self):
+    for key in self.prototype.keys():
+        if len(self.prototype[key]) == 1:
+            self.prototype[key] = self.prototype[key][0].squeeze().data
+        elif len(self.prototype[key]) > 1:
+            c = self.prototype[key][0]
+            for i in range(1, len(self.prototype[key])):
+                c = torch.cat((c, self.prototype[key][i]), dim=0)
+            self.prototype[key] = c
+            self.prototype[key] = torch.mean(self.prototype[key], dim=0).data

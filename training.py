@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import scipy.stats
 
 
-
+### BASELINE RUNS (can recover for other baselines in past commits)
 def run_selftrain_GC(clients, server, local_epoch):
     # all clients are initialized with the same weights
     for client in clients:
@@ -26,25 +26,60 @@ def run_selftrain_GC(clients, server, local_epoch):
 
     return allAccs
 
+def run_fedavg(clients, server, COMMUNICATION_ROUNDS, local_epoch, samp=None, frac=1.0):
+    for client in clients:
+        client.download_from_server(server)
 
+    if samp is None:
+        sampling_fn = server.randomSample_clients
+        frac = 1.0
 
+    for c_round in range(1, COMMUNICATION_ROUNDS + 1):
+        if (c_round) % 50 == 0:
+            print(f"  > round {c_round}")
 
+        if c_round == 1:
+            selected_clients = clients
+        else:
+            selected_clients = sampling_fn(clients, frac)
 
+        for client in selected_clients:
+            # only get weights of graphconv layers
+            client.local_train(local_epoch)
+
+        server.aggregate_weights(selected_clients)
+        for client in selected_clients:
+            client.download_from_server(server)
+
+    frame = pd.DataFrame()
+    for client in clients:
+        loss, acc = client.evaluate()
+        frame.loc[client.name, 'test_acc'] = acc
+
+    def highlight_max(s):
+        is_max = s == s.max()
+        return ['background-color: yellow' if v else '' for v in is_max]
+
+    fs = frame.style.apply(highlight_max).data
+    print(fs)
+    return frame
+
+### DOES NOT USE INCENTIVES MECHANISM
 
 def run_prototype(clients, server, COMMUNICATION_ROUNDS, local_epoch, samp=None, frac=1.0):
-    
+    """
+        Does not use reputation when aggregating prototypes. Does not do gradient / payoff allocation either.
+    """
     #l = []
     selected_clients = clients
     for client in selected_clients:
         client.motif_construction()
-        
         
     for c_round in range(1, COMMUNICATION_ROUNDS + 1):
         #l1 = 0
         if (c_round) % 50 == 0:
             print(f"  > round {c_round}")
         
-
         if c_round == 1:
             for client in selected_clients:
                 
@@ -59,7 +94,6 @@ def run_prototype(clients, server, COMMUNICATION_ROUNDS, local_epoch, samp=None,
             #l1 += loss
         #l.append(l1 / len(clients))
 
-        
 
         for client in selected_clients:
             client.clear_prototype()
@@ -80,282 +114,53 @@ def run_prototype(clients, server, COMMUNICATION_ROUNDS, local_epoch, samp=None,
     print('w/o reput')
     return frame
 
-
-
-def run_protoreput(clients, server, COMMUNICATION_ROUNDS, device, samp=None, frac=1.0):
-    selected_clients = clients
-    rs = torch.zeros(len(clients))
+def run_prototype_with_reputation_weighted_aggregation(clients, server, COMMUNICATION_ROUNDS, device, dp=False, samp=None, frac=1.0):
+    """
+        Doesn't do model allocation / payoff, but uses reputation when aggregating prototypes.
+        Each global prototype is the weighted sum of client prototypes where each weight is
+        the agent value for that specfic prototype. Thus, more reputable cleints for each specific prototype
+        will influence the update.
+    """
+    # TODO: remove redundant rs from this func
+    rs = torch.zeros(len(clients)) # Init value of agent
     for i in range(len(clients)):
         rs[i] = 1 / len(clients)
 
-    for client in selected_clients:
-        client.motif_construction()
-        
-    for c_round in range(1, COMMUNICATION_ROUNDS + 1):
-        if (c_round) % 50 == 0:
-            print(f"  > round {c_round}")
-        if c_round == 1:
-            for client in selected_clients:
-                
-                client.prototype_update()
-        
-
-
-        
-        
-
-
-
-
-
-
-
-        server.reput_aggregate_prototype(rs, selected_clients)
-        phis = torch.zeros(len(clients))
-        for i, client in enumerate(selected_clients):
-            phis[i] = client.cosine_similar(server)
-            
-        rs = 0.95 * rs + 0.05 * phis
-        rs = torch.clamp(rs, min=1e-3)
-        rs = torch.div(rs, rs.sum())
-
-        for client in selected_clients:
-            client.download_code(server)
-            client.prototype_train(server)
-
-        
-
-        for client in selected_clients:
-            client.clear_prototype()
-        server.clear_prototype()
-        
-        #torch.cuda.empty_cache()
-
-    frame = pd.DataFrame()
     for client in clients:
-        loss, acc = client.evaluate()
-        frame.loc[client.name, 'test_acc'] = acc
-
-    def highlight_max(s):
-        is_max = s == s.max()
-        return ['background-color: yellow' if v else '' for v in is_max]
-
-    fs = frame.style.apply(highlight_max).data
-    print(fs)
-    print('reput')
-    return frame
-        
-        
-    
-    
-    
-
-
-def run_protoreput2(clients, server, COMMUNICATION_ROUNDS, device, dp=False, samp=None, frac=1.0):
-    selected_clients = clients
-    rs = torch.zeros(len(clients))
-    for i in range(len(clients)):
-        rs[i] = 1 / len(clients)
-
-    for client in selected_clients:
-        
         client.motif_construction()
 
-
-    # client1 = selected_clients[9]
-    # client2 = selected_clients[4]
-    # count = 0
-    # num_motif = 0
-    # freq1 = []
-    # freq2 = []
-    # for motif in client1.motif_count.keys():
-    #     if motif not in client2.motif_count.keys():
-    #         count += client1.motif_count[motif]
-    #         num_motif += 1
-    #         freq1.append(client1.motif_count[motif])
-    #         freq2.append(0)
-    # for motif in client1.motif_count.keys():
-    #     if motif in client2.motif_count.keys():    
-    #         count += abs(client1.motif_count[motif] - client2.motif_count[motif])
-    #         num_motif += 1
-    #         freq1.append(client1.motif_count[motif])
-    #         freq2.append(client2.motif_count[motif])
-    #     # else:
-    #     #     count += client1.motif_count[motif]
-    #     #     num_motif += 1
-    # for motif in client2.motif_count.keys():
-    #     if motif not in client1.motif_count.keys():
-    #         count += client2.motif_count[motif]
-    #         num_motif += 1
-    #         freq1.append(0)
-    #         freq2.append(client2.motif_count[motif])
-    # D1=scipy.stats.wasserstein_distance(freq1, freq2)
-    # diff = count / num_motif
-    # print(f'diff={diff}')
-    # print(f'distance={D1}')
-    # x = [i for i in range(1, len(freq1) + 1)]
-    # plt.plot(x, freq1, label='client9')
-    # plt.plot(x, freq2, label='client6')
-    # plt.legend()
-    # plt.savefig('2.png')
-
-
-
-
-
-
-
-
-
-    # count = 0
-    # num_motif = 0
-    # motif1 = {}
-    # motif2 = {}
-    # freq1 = []
-    # freq2 = []
-    # for motif_graph in client1.motif_dataset:
-    #     for motif in motif_graph.motif_dict:
-    #         if motif not in motif1.keys():
-    #             motif1[motif] = motif_graph.motif_dict[motif]
-    #         else:
-    #             motif1[motif] += motif_graph.motif_dict[motif]
-    # for motif_graph in client2.motif_dataset:
-    #     for motif in motif_graph.motif_dict:
-    #         if motif not in motif2.keys():
-    #             motif2[motif] = motif_graph.motif_dict[motif]
-    #         else:
-    #             motif2[motif] += motif_graph.motif_dict[motif]
-    # for motif in motif1.keys():
-    #     if motif in motif2.keys():
-    #         count += abs(motif1[motif] - motif2[motif])
-    #         num_motif += 1
-    #         freq1.append(motif1[motif])
-    #         freq2.append(motif2[motif])
-    #     else:
-    #         count += motif1[motif]
-    #         num_motif += 1
-    #         freq1.append(motif1[motif])
-    #         freq2.append(0)
-    # for motif in motif2.keys():
-    #     if motif not in motif1.keys():
-    #         count += motif2[motif]
-    #         num_motif += 1
-    #         freq1.append(0)
-    #         freq2.append(motif2[motif])
-
-
-
-    
-    # diff = count / num_motif
-    # D2=scipy.stats.wasserstein_distance(freq1, freq2)
-    # print(f'diff={diff}')
-    # print(f'distance={D2}')
-    # freq1 = []
-    # freq2 = []
-    
-    # for motif in motif1.keys():
-    #     if motif not in motif2.keys():
-    #         freq1.append(motif1[motif])
-    #         freq2.append(0)
-
-    # for motif in motif1.keys():
-    #     if motif in motif2.keys():
-    #         freq1.append(motif1[motif])
-    #         freq2.append(motif2[motif])
-    # for motif in motif2.keys():
-    #     if motif not in motif1.keys():
-    #         freq1.append(0)
-    #         freq2.append(motif2[motif])
-    # x = [i for i in range(1, len(freq1) + 1)]
-    # plt.plot(x, freq1)
-    # plt.plot(x, freq2)
-    # # plt.savefig('2.png')
-
-    
-
-
-
-
-
-            
-
-
-
-    
-
-
-        
     for c_round in range(1, COMMUNICATION_ROUNDS + 1):
         if (c_round) % 50 == 0:
             print(f"  > round {c_round}")
-            
-
-
-
-
         if c_round == 1:
-            for client in selected_clients:
-                
+            for client in clients:
                 client.prototype_update()
+
         if c_round == 1:
-            server.aggregate_prototype(selected_clients)
+            server.aggregate_prototype(clients)
         else:
-            server.reput_aggregate_prototype2(rs, selected_clients)
-        '''
-        if c_round % 50 == 0:
-            for i, client in enumerate(clients):
-                # print(client.prototype.keys())
-                print(((1, 1, 1, 1), (1, 1, 1, 1)) in client.prototype.keys())
-                if ((1, 1, 1, 1), (1, 1, 1, 1)) in client.prototype.keys():
-                    emb = client.prototype[((1, 1, 1, 1), (1, 1, 1, 1))]
-                    # print(emb)
-                    emb = emb.cpu().numpy()
-                    np.save(f'embedding/{c_round}/{i}.npy', emb)
-                # emb = server.global_prototype[((1, 2, 2), (1, 1, 1))]
-                emb = server.global_prototype[((1, 1, 1, 1), (1, 1, 1, 1))]
-                emb = emb.cpu().numpy()
-                np.save(f'embedding/{c_round}/global.npy', emb)
-        '''
-        
-
-
-        
-        
-
-
-
-
-
-
-
-        #server.reput_aggregate_prototype(rs, selected_clients)
+            server.aggregate_prototype_weighted_by_client_reput_per_motif(clients)
+       
         phis = torch.zeros(len(clients))
-        for i, client in enumerate(selected_clients):
-            phis[0] = client.cosine_similar(server)
+        for i, client in enumerate(clients):
+            phis[i] = client.cosine_similar(server) 
             
         rs = 0.95 * rs + 0.05 * phis
-        # rs = phis
         rs = torch.clamp(rs, min=1e-3)
         rs = torch.div(rs, rs.sum())
 
-        for client in selected_clients:
+        for client in clients:
             client.download_code(server)
-            if not dp or c_round == 1:
+            if not c_round == 1:
                 for _ in range(1):
                     client.prototype_train(server)
-            else:
-                client.dptrain(server)
             
-
+        server.update_reput(clients)
         
-        server.update_reput(selected_clients)
-        
-        for client in selected_clients:
+        for client in clients:
             client.clear_prototype()
         server.clear_prototype()
         
-        #torch.cuda.empty_cache()
-
     frame = pd.DataFrame()
     for client in clients:
         loss, acc = client.evaluate()
@@ -371,94 +176,8 @@ def run_protoreput2(clients, server, COMMUNICATION_ROUNDS, device, dp=False, sam
     return frame
 
 
+### USES INCENTIVES MECHANISM
 
-
-
-def run_protoreput4(clients, server, COMMUNICATION_ROUNDS, device, dp=False, samp=None, frac=1.0):
-    selected_clients = clients
-    rs = torch.zeros(len(clients))
-    for i in range(len(clients)):
-        rs[i] = 1 / len(clients)
-
-    for client in selected_clients:
-        client.motif_construction()
-    
-
-        
-    for c_round in range(1, COMMUNICATION_ROUNDS + 1):
-        if (c_round) % 50 == 0:
-            print(f"  > round {c_round}")
-        if c_round == 1:
-            for client in selected_clients:
-                
-                client.prototype_update()
-        if c_round == 1:
-            server.aggregate_prototype(selected_clients)
-        else:
-            server.reput_aggregate_prototype2(rs, selected_clients)
-
-        
-
-
-        
-        
-
-
-
-
-
-
-
-        #server.reput_aggregate_prototype(rs, selected_clients)
-        phis = torch.zeros(len(clients))
-        for i, client in enumerate(selected_clients):
-            phis[i] = client.cosine_similar(server)
-            
-        rs = 0.95 * rs + 0.05 * phis
-        rs = torch.clamp(rs, min=1e-3)
-        rs = torch.div(rs, rs.sum())
-
-        for client in selected_clients:
-            client.download_code(server)
-            if not dp or c_round == 1:
-                client.prototype_train(server)
-            else:
-                client.dptrain(server)
-            
-
-        
-        server.update_reput(selected_clients)
-        
-        for client in selected_clients:
-            client.clear_prototype()
-        server.clear_prototype()
-        
-        #torch.cuda.empty_cache()
-
-    frame = pd.DataFrame()
-    for client in clients:
-        loss, acc = client.evaluate()
-        frame.loc[client.name, 'test_acc'] = acc
-
-    def highlight_max(s):
-        is_max = s == s.max()
-        return ['background-color: yellow' if v else '' for v in is_max]
-
-    fs = frame.style.apply(highlight_max).data
-    print(fs)
-    print('reput2')
-    return frame
-
-
-
-
-
-
-
-
-
-
-    
 def run_protoreput3(clients, server, COMMUNICATION_ROUNDS, device, samp=None, frac=1.0):
     
     for client in clients:
@@ -512,8 +231,6 @@ def run_protoreput3(clients, server, COMMUNICATION_ROUNDS, device, samp=None, fr
         for client in clients:
             client.reput /= weight
 
-        
-
         for client in selected_clients:
             client.download_code(server)
             client.prototype_train(server)
@@ -526,8 +243,6 @@ def run_protoreput3(clients, server, COMMUNICATION_ROUNDS, device, samp=None, fr
         # gradient = [(new_param.data - old_param.data) for old_param, new_param in zip(old.parameters(), new.parameters())]
         # print('finish1')
         
-
-
         # # distribute model parameters
         # rs = torch.zeros(len(selected_clients))
         # for i in range(len(selected_clients)):
@@ -556,12 +271,6 @@ def run_protoreput3(clients, server, COMMUNICATION_ROUNDS, device, samp=None, fr
     print(fs)
     print('reput3')
     return frame
-
-            
-
-
-
-
 
 def run_reput(clients, server, communication_rounds, local_epoch, samp=None, frac=1.0):
     selected_clients = clients
@@ -607,9 +316,6 @@ def run_reput(clients, server, communication_rounds, local_epoch, samp=None, fra
         # calculate the global gradient
         # old = deepcopy(server.model)
         #print(old.parameters())
-
-
-
 
         # for k in server.W.keys():
         #     server.W[k].data = torch.sum(torch.stack([torch.mul(client.W[k].data, F.relu(client.reput)) for client in selected_clients]), dim=0) / torch.sum(F.relu(torch.tensor(rs))).clone()
@@ -675,7 +381,6 @@ def run_reput(clients, server, communication_rounds, local_epoch, samp=None, fra
     print(fs)
     for client in selected_clients:
         print(client.payoff)        
-
 
 def run_reput2(clients, server, communication_rounds, local_epoch, samp=None, frac=1.0):
     rs = torch.zeros(len(clients))
@@ -776,13 +481,6 @@ def run_reput2(clients, server, communication_rounds, local_epoch, samp=None, fr
                 client.payoff += rs[i] + torch.max(torch.tensor([rs[i] - k, 0]))
             client.reputation.append(rs[i])
 
-
-
-
-        
-        
-
-
         # distribute model parameters
         
         q_ratios = torch.tanh(0.5 * rs)
@@ -796,15 +494,12 @@ def run_reput2(clients, server, communication_rounds, local_epoch, samp=None, fr
             for j, k in enumerate(server.W.keys()):
                 selected_clients[i].W[k] = selected_clients[i].W[k] + reward_gradient[j]
         
-
         print('finish2')
-
 
         for client in selected_clients:
             client.clear_prototype()
         server.clear_prototype()
 
-    
     frame = pd.DataFrame()
     for client in clients:
         loss, acc = client.evaluate()
@@ -821,11 +516,6 @@ def run_reput2(clients, server, communication_rounds, local_epoch, samp=None, fr
     print('reput3')
 
     return frame
-
-
-
-
-
 
 def run_reput3(clients, server, communication_rounds, local_epoch, samp=None, frac=1.0):
     rs = torch.zeros(len(clients))
@@ -912,13 +602,6 @@ def run_reput3(clients, server, communication_rounds, local_epoch, samp=None, fr
                 client.payoff += rs[i] - k
             client.reputation.append(rs[i])
 
-
-
-
-        
-        
-
-
         # distribute model parameters
         
         q_ratios = torch.tanh(2 * rs)
@@ -975,15 +658,54 @@ def run_reput3(clients, server, communication_rounds, local_epoch, samp=None, fr
     return frame
 
 
+### HELPERS
 
+def compare_local_motif_freq_distribution(client1, client2):
+    """
+    Computes structural similarity and topological discrepancy between two clients 
+    by analyzing their local motif frequency distributions.
 
+    Args:
+        client1 (Client_GC)
+        client2 (Client_GC)
+    
+    Returns:
+        tuple: 
+            - wasserstein_dist (float): Statistical distance (EMD) between 
+              structural distributions.
+            - avg_diff (float): Average L1 discrepancy (Topological Volume Mismatch) 
+              per motif type.
+    """
+
+    # Use the pre-aggregated counts (Stage 1's source)
+    m1 = client1.motif_count
+    m2 = client2.motif_count
+    
+    # Get all unique motifs across both clients
+    all_motifs = set(m1.keys()).union(set(m2.keys()))
+    
+    freq1 = []
+    freq2 = []
+    total_diff = 0
+    
+    for motif in all_motifs:
+        f1 = m1.get(motif, 0)
+        f2 = m2.get(motif, 0)
         
-        
+        freq1.append(f1)
+        freq2.append(f2)
+        total_diff += abs(f1 - f2)
 
-        
-
-        
-
+    # Metrics
+    D = scipy.stats.wasserstein_distance(freq1, freq2)
+    avg_diff = total_diff / len(all_motifs)
+    
+    # Plotting (only need to do this once!)
+    plt.plot(freq1, label=client1.name)
+    plt.plot(freq2, label=client2.name)
+    plt.savefig('comparison.png')
+    
+    return D, avg_diff
 
     
 
