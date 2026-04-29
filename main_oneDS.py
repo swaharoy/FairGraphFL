@@ -156,8 +156,8 @@ if __name__ == '__main__':
     init_clients, init_server, init_idx_clients = setupGC.setup_devices(splitedData, args)
     print("\nDone setting up devices.")
 
-    print(f"Server param len: {len(init_server.model.parameters())}")
-    print(f"Server param len: {len(init_clients.model.parameters())}")
+    print(f"Server param len: {len(list(init_server.model.parameters()))}")
+    print(f"Server param len: {len(list((init_clients.model.parameters())))}")
 
     process_incentive_mech_with_prototypes(clients=copy.deepcopy(init_clients), server=copy.deepcopy(init_server))
     
