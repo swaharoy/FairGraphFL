@@ -254,8 +254,9 @@ def run_incentive_mech_wo_prototypes(clients, server, communication_rounds, loca
     fs = frame.style.apply(highlight_max).data
     print(fs)
 
+    print("Payoffs: \n")
     for client in clients:
-        print(client.payoff)        
+        print(client.payoff_history)        
 
 def run_incentive_mech_with_prototypes(clients, server, communication_rounds, local_epoch, samp=None, frac=1.0):
     """
@@ -288,6 +289,7 @@ def run_incentive_mech_with_prototypes(clients, server, communication_rounds, lo
     for c_round in range(1, communication_rounds+1):
         for i in range(len(clients)):
             clients[i].reput = rs[i]
+            clients[i].reputation.append(rs[i])
 
         if (c_round) % 50 == 0:
             print(f"  > round {c_round}")
@@ -351,15 +353,13 @@ def run_incentive_mech_with_prototypes(clients, server, communication_rounds, lo
             rs[i] *= diversity[i]
         rs = torch.div(rs, rs.sum())
 
-        # money payoff (eq 5)
+        # money payoff 
+        allocate_payoff(clients, rs)
+
+        # add current agent values to client reputation
         for i, client in enumerate(clients):
-            if c_round == 1:
-                client.payoff += rs[i]
-            else:   
-                prev_rounds_avg = torch.tensor(client.reputation).mean() 
-                client.payoff += rs[i] + torch.max(torch.tensor([rs[i] - prev_rounds_avg, 0]))
             client.reputation.append(rs[i])
-        
+
         # allocate gradients to clients (\beta = 0.5)
         q_ratios = torch.tanh(0.5 * rs)
         q_ratios /= torch.max(q_ratios)
@@ -447,7 +447,30 @@ def compare_local_motif_freq_distribution(client1, client2):
     return D, avg_diff
 
     
+def allocate_payoff(clients, rs):
+    """
+        Calculates payoff per client. 
+        If agent value (rs[i]) > 0, calculates past contribution using reputation history.
+        Curr communication round stored in client.payoff
+        Also appended to client.payoff_history
+    """
 
+    total_payoff_c_round = 1e-9
+
+    for i, client in enumerate(clients):
+        prev_rounds_avg = torch.tensor(client.reputation).mean() 
+
+        if rs[i] < 0:
+            client.payoff = rs[i]
+        else:
+            past_contribtuion = torch.max(torch.tensor([rs[i] - prev_rounds_avg, 0]))
+            client.payoff = rs[i] + past_contribtuion
+
+        total_payoff_c_round +=  client.payoff
+    
+    for client in clients:
+        client.payoff /= total_payoff_c_round
+        client.payoff_history.append(client.payoff)
     
     
         

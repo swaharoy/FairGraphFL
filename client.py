@@ -75,9 +75,12 @@ class Client_GC():
 
         self.simi = {}
         self.rs = {}            
-        self.reput = 0
+     
         self.payoff = 0
-        self.reputation = []
+        self.payoff_history = []
+
+        self.reput = 0
+        self.reputation = [] # reputation history
 
         self.num_graphs = len(self.graphs_train)
         
