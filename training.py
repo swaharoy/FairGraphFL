@@ -360,9 +360,10 @@ def run_incentive_mech_with_prototypes(clients, server, communication_rounds, lo
                 client.payoff += rs[i] + torch.max(torch.tensor([rs[i] - prev_rounds_avg, 0]))
             client.reputation.append(rs[i])
         
-        # allocate gradients to clients
+        # allocate gradients to clients (\beta = 0.5)
         q_ratios = torch.tanh(0.5 * rs)
         q_ratios /= torch.max(q_ratios)
+        print(f"q_rations {q_ratios}")
 
         for i in range(len(clients)):
             reward_gradient = mask_grad_update_by_order(global_gradient, mask_percentile=q_ratios[i], mode='all')
