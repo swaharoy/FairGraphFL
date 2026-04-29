@@ -135,12 +135,13 @@ def mask_grad_update_by_order(grad_update, mask_order=None, mask_percentile=None
         return grad_update
     elif mode == 'all':
         all_update_mod = torch.cat([update.data.view(-1).abs() for update in grad_update])
+        mask_percentile = max(0, mask_percentile)
         if not mask_order and mask_percentile is not None:
             mask_order = int(len(all_update_mod) * mask_percentile)
         if mask_order == 0:
             return mask_grad_update_by_magnitude(grad_update, float('inf'))
         else:
-            topk, indices = torch.topk(all_update_mod, mask_order)
+            topk, indices = torch.topk(all_update_mod, min(mask_order, len(all_update_mod)))
             return mask_grad_update_by_magnitude(grad_update, topk[-1])
         
 
