@@ -157,7 +157,7 @@ if __name__ == '__main__':
     print("\nDone setting up devices.")
 
     print(f"Server param len: {len(list(init_server.model.parameters()))}")
-    print(f"Server param len: {len(list((init_clients.model.parameters())))}")
+    print(f"Server param len: {len(list((init_clients[0].model.parameters())))}")
 
     process_incentive_mech_with_prototypes(clients=copy.deepcopy(init_clients), server=copy.deepcopy(init_server))
     
