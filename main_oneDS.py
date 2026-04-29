@@ -163,8 +163,8 @@ if __name__ == '__main__':
     print(f"Server param len: {len(server_params)}")
     print(f"Client param len: {len(client_params)}")
 
-    print(f"Server named params {init_server.model.named_parameters()}")
-    print(f"Client named params {init_clients[0].model.named_parameters()}")
+    print(f"Server named params {list(init_server.model.named_parameters())}")
+    print(f"Client named params {list(init_clients[0].model.named_parameters())}")
 
 
     for start_idx in range(len(client_params) - len(server_params) + 1):
