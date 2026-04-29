@@ -283,7 +283,18 @@ class Client_GC():
         for key in self.prototype.keys():
             norm_value = torch.norm(self.prototype[key])
             self.prototype[key] /= torch.max(norm_value, torch.ones_like(norm_value))
-             
+
+    def prototype_embedding_vector_mean(self):
+        for key in self.prototype.keys():
+            if len(self.prototype[key]) == 1:
+                self.prototype[key] = self.prototype[key][0].squeeze().data
+            elif len(self.prototype[key]) > 1:
+                c = self.prototype[key][0]
+                for i in range(1, len(self.prototype[key])):
+                    c = torch.cat((c, self.prototype[key][i]), dim=0)
+                self.prototype[key] = c
+                self.prototype[key] = torch.mean(self.prototype[key], dim=0).data  
+
     def clear_prototype(self):
         
         self.prototype_code = {} 
@@ -298,6 +309,9 @@ class Client_GC():
             self.code_motif[value] = key
         
     def prototype_train(self, server):
+        """
+            trains local model and updates local prototypes
+        """
         self.model.concat = True
 
         # Reset prototypes
@@ -681,14 +695,3 @@ def eval_gc_prox(model, test_loader, device, gconvNames, mu, Wt):
     return total_loss/ngraphs, acc_sum/ngraphs
 
 
-### MY FUNCS
-def prototype_embedding_vector_mean(self):
-    for key in self.prototype.keys():
-        if len(self.prototype[key]) == 1:
-            self.prototype[key] = self.prototype[key][0].squeeze().data
-        elif len(self.prototype[key]) > 1:
-            c = self.prototype[key][0]
-            for i in range(1, len(self.prototype[key])):
-                c = torch.cat((c, self.prototype[key][i]), dim=0)
-            self.prototype[key] = c
-            self.prototype[key] = torch.mean(self.prototype[key], dim=0).data

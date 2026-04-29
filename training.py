@@ -293,13 +293,15 @@ def run_incentive_mech_with_prototypes(clients, server, communication_rounds, lo
         if (c_round) % 50 == 0:
             print(f"  > round {c_round}")
 
-        # update client prototypes
-        for client in clients: 
-                client.prototype_update()
+       
 
         # update global prototypes
         if c_round == 1: 
             # initializes global prototypes 
+
+            for client in clients: 
+                    client.prototype_update()
+
             # TODO: what is the "paper" method for initializing global prototypes
             # clients with a high freq of a motif has more weight in the prototype avg
             server.aggregate_prototype(clients)                  
@@ -313,6 +315,7 @@ def run_incentive_mech_with_prototypes(clients, server, communication_rounds, lo
 
             client.download_code(server)
 
+            # trains local model AND updates local prototypes
             client.prototype_train(server)
 
             new_model = deepcopy(client.model)
