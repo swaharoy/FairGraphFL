@@ -401,7 +401,7 @@ class Client_GC():
         self.prototype_embedding_vector_mean()    
     
 
-        print('finish')
+        print('finish client prototype train')
 
     def cosine_similar(self, server):
         #  TODO: why implementing agent value per key?
