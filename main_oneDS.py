@@ -156,10 +156,29 @@ if __name__ == '__main__':
     init_clients, init_server, init_idx_clients = setupGC.setup_devices(splitedData, args)
     print("\nDone setting up devices.")
 
-    print(f"Server param len: {len(list(init_server.model.parameters()))}")
-    print(f"Server param len: {len(list((init_clients[0].model.parameters())))}")
+    
+    server_params =  list(init_server.model.parameters())
+    client_params = list((init_clients[0].model.parameters()))
 
-    process_incentive_mech_with_prototypes(clients=copy.deepcopy(init_clients), server=copy.deepcopy(init_server))
+    print(f"Server param len: {len(server_params)}")
+    print(f"Client param len: {len(client_params)}")
+
+    print(f"Server named params {init_server.model.named_parameters()}")
+    print(f"Client named params {init_clients[0].model.named_parameters()}")
+
+
+    for start_idx in range(len(client_params) - len(server_params) + 1):
+        match = True
+        for i in range(len(server_params)):
+            if client_params[start_idx + i].shape != server_params[i].shape:
+                match = False
+                break
+        if match:
+            print(f"✅ Found a match! The shared GNN layers are at client indices {start_idx} to {start_idx + len(server_params)}")
+            print(f"Use: local_gradient[{start_idx}:{start_idx + len(server_params)}]")
+            break
+
+    # process_incentive_mech_with_prototypes(clients=copy.deepcopy(init_clients), server=copy.deepcopy(init_server))
     
     
     

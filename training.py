@@ -278,7 +278,6 @@ def run_incentive_mech_with_prototypes(clients, server, communication_rounds, lo
     diversity = [] 
     for client in clients:
         client.motif_construction()
-        print(len(client.prototype.keys()))
         diversity.append(len(client.prototype.keys()))
     diversity = torch.tensor(diversity, dtype = torch.long)
     # modified from paper, dividing by max num of prototypes rather than total unique

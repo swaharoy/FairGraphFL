@@ -242,7 +242,7 @@ class Client_GC():
             self.prototype[key] = []
         for motif_graph in self.motif_dataset:
             self.motifset_dict.append(motif_graph.motif_dict)
-        print('finish constructing prototypes!')    
+        print(f'constructed { len(self.prototype.keys()) } prototypes')    
         
     def prototype_update(self):
         """
