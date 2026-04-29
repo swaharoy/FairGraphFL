@@ -198,7 +198,7 @@ def run_incentive_mech_wo_prototypes(clients, server, communication_rounds, loca
            
             local_gradient = [(new_param.data - old_param.data) for old_param, new_param in zip(old.parameters(), new.parameters())]
             gradient = []
-            for i in range(len(local_gradient)):
+            for i in range(2, 14): # 2-13 are conv layers 
                 gradient.append(local_gradient[i])
 
             flattened = flatten(gradient)
@@ -322,7 +322,7 @@ def run_incentive_mech_with_prototypes(clients, server, communication_rounds, lo
             local_gradient = [(new_param.data - old_param.data) for old_param, new_param in zip(old_model.parameters(), new_model.parameters())]
             
             gradient = []
-            for i in range(len(local_gradient)):
+            for i in range(2, 14): # 2-13 are conv layers 
                 gradient.append(local_gradient[i])
             
             flattened = flatten(gradient)
