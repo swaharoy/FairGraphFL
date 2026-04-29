@@ -22,6 +22,9 @@ class Server():
         self.code = {} # idx: motif_key
 
     def aggregate_prototype(self, clients):
+        """
+            Rather than using reputation to weight aggregation, uses frequency of motif occurence.
+        """
         # corresponds to eq 12
 
         # Populate vocab {motif: count_across_all_clients } 
@@ -50,12 +53,35 @@ class Server():
             self.global_prototype_code[motif] = i
             self.code[i] = motif
     
+    def aggregate_prototype_by_client_reput(self, clients):
+        """
+            Requires that client.reput is being updated.
+        """
+        for i, client in enumerate(clients):
+            for key in client.motif_count.keys():
+                if key not in self.global_prototype.keys():
+                    self.global_prototype[key] = client.reput * client.prototype[key]
+                    self.weight[key] = client.reput
+                else:
+                    self.global_prototype[key] += client.reput * client.prototype[key]
+                    self.weight[key] += client.reput
+
+        for key in self.global_prototype.keys():
+            self.global_prototype[key] /= self.weight[key]
+
+        for key in self.global_prototype.keys():
+            self.global_prototype[key] = self.global_prototype[key].data
+
+        for i, motif in enumerate(list(self.global_prototype.keys())):
+            self.global_prototype_code[motif] = i
+            self.code[i] = motif
+
     def aggregate_prototype_weighted_by_client_reput_per_motif(self, clients):
         """
             Requires that server.update_reput(clients) has been called at least once prior.
         """
-        # this means that the uodates to the prototypes are informed by the similarity between
-        # two prortypes that should be the same
+        # Updates to prototypes informed by the similarity between
+        # the corresponding local and global prototypes
         for i, client in enumerate(clients):
             for key in client.motif_count.keys():
                 if key not in self.global_prototype.keys(): 
@@ -84,28 +110,7 @@ class Server():
             for client in clients:
                 if key in client.rs.keys():
                     client.rs[key] /= weight           
-
-    def reput3_prototype(self, clients):
-        for client in clients:
-            for key in client.motif_count.keys():
-                if key not in self.vocab.keys():
-                    self.vocab[key] = client.motif_count[key]
-                    self.num_client[key] = 1
-                else:
-                    self.vocab[key] += client.motif_count[key]
-                    self.num_client[key] += 1
-        for i, client in enumerate(clients):
-            for key in client.motif_count.keys():
-                if key not in self.global_prototype.keys():
-                    self.global_prototype[key] = client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]
-                else:
-                    self.global_prototype[key] += client.motif_count[key] / self.vocab[key] * client.prototype[key] / self.num_client[key]   
-        for key in self.global_prototype.keys():
-            self.global_prototype[key] = self.global_prototype[key].data
-        for i, motif in enumerate(list(self.global_prototype.keys())):
-            self.global_prototype_code[motif] = i
-            self.code[i] = motif
-            
+    
     def clear_prototype(self):
         self.vocab = {}
         

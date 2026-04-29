@@ -122,8 +122,7 @@ def mask_grad_update_by_order(grad_update, mask_order=None, mask_percentile=None
     if mode == 'layer':
         grad_update = copy.deepcopy(grad_update)
         mask_percentile = max(0, mask_percentile)
-        for i, layer in enumerate(grad_update):
-            
+        for i, layer in enumerate(grad_update):   
             layer_mod = layer.data.view(-1).abs()
             if mask_percentile is not None:
                 mask_order = math.ceil(len(layer_mod) * mask_percentile)
@@ -134,7 +133,6 @@ def mask_grad_update_by_order(grad_update, mask_order=None, mask_percentile=None
                 
                 grad_update[i].data[layer.data.abs() < topk[-1]] = 0
         return grad_update
-
     elif mode == 'all':
         all_update_mod = torch.cat([update.data.view(-1).abs() for update in grad_update])
         if not mask_order and mask_percentile is not None:

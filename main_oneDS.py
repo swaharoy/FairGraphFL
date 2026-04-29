@@ -9,6 +9,11 @@ import setupGC
 from training import *
 
 
+def process_incentive_mech_with_prototypes(clients, server):
+    print('\nDone setting up devices.')
+    print('Running incentive_mech_with_prototypes ...')
+    frame = run_incentive_mech_with_prototypes(clients, server, args.num_rounds, args.local_epoch, samp=None)
+
 ### BASELINES
 def process_selftrain(clients, server, local_epoch):
     print("Self-training ...")
@@ -36,26 +41,6 @@ def process_fedavg(clients, server):
         outfile = os.path.join(outpath, "repeats", f'{args.repeat}_accuracy_fedavg_GC{suffix}.csv')
     frame.to_csv(outfile)
     print(f"Wrote to file: {outfile}")
-
-
-### Versions of our model:
-
-def process_prototype(clients, server):
-    print("\nDone setting up prototype devices.")
-    print("Running fed prototype ...")
-    frame = run_prototype(clients, server, args.num_rounds, args.local_epoch, samp=None)
-    #outfile = os.path.join()
-
-
-def process_protoreput2(clients, server):
-    print("\nDone setting up prototype devices.")
-    print("Running fed prototype ...")
-    frame = run_prototype_with_reputation_weighted_aggregation(clients, server, args.num_rounds, args.device, args.disable_dp, samp=None)
-
-def process_reput(clients, server):
-    print('\nDone setting up devices.')
-    print('Running fed reput ...')
-    frame = run_reput(clients, server, args.num_rounds, args.local_epoch, samp=None)
 
 
 if __name__ == '__main__':
@@ -171,7 +156,7 @@ if __name__ == '__main__':
     init_clients, init_server, init_idx_clients = setupGC.setup_devices(splitedData, args)
     print("\nDone setting up devices.")
 
-    process_protoreput2(clients=copy.deepcopy(init_clients), server=copy.deepcopy(init_server))
+    process_incentive_mech_with_prototypes(clients=copy.deepcopy(init_clients), server=copy.deepcopy(init_server))
     
     
     
