@@ -75,7 +75,7 @@ class GIN(torch.nn.Module):
                   Shape: [total_num_nodes, nhid].
             # TODO: x2 can be removed layer, keeping for comptabilty rn
         """
-        x, edge_index, batch = data.x, data.edge_index, data.batch
+        x, edge_index = data.x, data.edge_index
         x = self.pre(x)
         for i in range(len(self.graph_convs)):
             x = self.graph_convs[i](x, edge_index)
