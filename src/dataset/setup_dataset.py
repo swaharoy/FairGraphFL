@@ -8,10 +8,9 @@ import torch
 import torch_geometric
 import pandas as pd
 import os
-import numpy as np
 
 
-from data.partition import partition_graph
+from dataset.partition import partition_graph
 from torch_geometric import datasets
 import torch_geometric.transforms as T
 from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
