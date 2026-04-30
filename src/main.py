@@ -10,8 +10,8 @@ from plot import plot_client_metrics
 from client import Client
 from server import Server
 
-from dataset import setup_dataset
-from src.training.selftrain import selftrain
+from dataset.setup_dataset import setup_dataset
+from training.selftrain import selftrain
 
 def parse_args():
     """
