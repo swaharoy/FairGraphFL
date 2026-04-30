@@ -4,16 +4,23 @@ import random
 import torch
 import numpy as np
 from pathlib import Path
-import copy
 
-from data import setup_dataset
-from src.models import GIN, ogbGIN, serverGIN
-from archive_src.client import Client_GC
-from archive_src.server import Server
+from setup import setup_dataset
+from src.models import GIN, serverGIN
+from plot import plot_client_metrics
+from client import Client
+from server import Server
 
 from src.training.selftrain import selftrain
 
 def parse_args():
+    """
+    Parses command line arguments for the federated learning simulation.
+
+    Returns:
+        argparse.Namespace: The parsed arguments.
+    """
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str, default='cpu',
                         help='CPU / GPU device.')
@@ -81,12 +88,30 @@ def parse_args():
     return args
 
 def set_seed(seed):
+    """
+    Sets the random seed for Python, NumPy, and PyTorch to ensure reproducibility.
+
+    Args:
+        seed (int): The chosen seed value.
+    """
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
 
 def create_stats_outpath(args, is_global):
+    """
+    Generates the output file path for saving dataset statistics.
+
+    Args:
+        args (argparse.Namespace): Run configuration arguments.
+        is_global (bool): Flag indicating if the stats are for the global graph.
+
+    Returns:
+        str: Formatted filepath.
+    """
+
     dir_path = os.path.join(args.outbase, "initPartitioningImpl")
     Path(dir_path).mkdir(parents=True, exist_ok=True)
     print(f"Output Path: {dir_path}")
@@ -96,29 +121,45 @@ def create_stats_outpath(args, is_global):
 
     return os.path.join(dir_path, filename)
 
-def init_clients(subgraphs, args):
+def init_clients(subgraphs, num_classes, args) -> list[Client]:
+    """
+    Initializes the local models and configurations for all federated clients.
+
+    Args:
+        subgraphs (list): List of Data objects representing local partitions.
+        num_classes (int): Number of total target classes.
+        num_node_features (int): Number of input features per node.
+        args (argparse.Namespace): Simulation arguments.
+
+    Returns:
+        list[Client]: A list of instantiated Client objects.
+    """
+
     idx_clients = {}
     clients = []
 
     for idx, subgraph in enumerate(subgraphs):
         idx_clients[idx] = subgraph
 
-        if args.data_group == 'ogb':
-            model = ogbGIN(num_graph_labels, args.hidden, args.nlayer, args.dropout)
-        else:
-            model = GIN(num_node_features, args.hidden, num_graph_labels, args.nlayer, args.dropout)
+        model = GIN(nfeat= num_node_features, nhid= args.hidden, num_classes= num_classes, nlayer= args.nlayer,dropout= args.dropout)
 
-
-        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, client_model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
-        clients.append(Client_GC(model, idx, subgraph, train_size, graphs_train, dataloaders, optimizer, args))
+        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
+        clients.append(Client(client_id=idx, model= model, subgraph= subgraph, optimizer=optimizer, args=args))
 
     return clients
 
-def init_server(dataset_name):
-    if args.data_group == 'ogb':
-        model = ogbGIN(num_graph_labels, args.hidden, args.nlayer, args.dropout)
-    else:
-        model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
+def init_server(args):
+    """
+    Initializes the central server that handles global aggregation.
+
+    Args:
+        args (argparse.Namespace): Simulation arguments.
+
+    Returns:
+        Server: The instantiated central server object.
+    """
+
+    model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
   
     return Server(model, args.device)
 
@@ -130,7 +171,10 @@ if __name__ == '__main__':
 
     args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    subgraphs, global_stats, subgraph_stats = setup_dataset.setup_datasets(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
+    if args.training == "global":
+        args.num_clients = 1
+        
+    subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset.setup_datasets(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
 
     print(f"Subgraph construction from dataset {args.dataset} complete.")
 
@@ -140,18 +184,20 @@ if __name__ == '__main__':
     subgraph_stats.to_csv(outf_subgraph)
     print(f"Wrote to {outf_global} and {outf_subgraph}")
 
-    clients = init_clients(subgraphs, args)
+    clients = init_clients(subgraphs, num_classes, args)
     server = init_server(args.dataset)
 
-    if args.training == "selftrain":
-        selftrain(clients, server, args.local_epoch)
+    if args.training == "selftrain" or args.training == "global":
+        metrics = selftrain(clients, server, args.local_epoch)
     elif args.training == "fedavg":
-        pass
+        metrics = {}
     elif args.training == "fairfedmotif":
-        pass
+        metrics = {}
     else:
         raise ValueError(f"Unknown training framework: {args.training}")
 
+    if metrics:
+        plot_client_metrics(metrics)
         
 
 

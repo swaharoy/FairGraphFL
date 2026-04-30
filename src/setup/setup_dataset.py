@@ -26,6 +26,19 @@ torch.serialization.add_safe_globals([
 
 
 def split_train_val_test(data, seed, train_ratio=0.2, val_ratio=0.35):
+    """
+    Creates randomized train, validation, and test masks for a global graph.
+
+    Args:
+        data (torch_geometric.data.Data): The input graph data.
+        seed (int): Random seed for reproducibility.
+        train_ratio (float): Proportion of nodes to use for training.
+        val_ratio (float): Proportion of nodes to use for validation.
+
+    Returns:
+        torch_geometric.data.Data: The updated data object with masks attached.
+    """
+
     num_nodes = data.num_nodes
 
     # reproducibility
@@ -63,9 +76,15 @@ def split_train_val_test(data, seed, train_ratio=0.2, val_ratio=0.35):
 
 def compute_graph_stats(global_graph, subgraphs, undirected=True):
     """
+    Computes structural statistics (nodes, edges) for the global and partitioned graphs.
+
+    Args:
+        global_graph (torch_geometric.data.Data): The original unpartitioned graph.
+        subgraphs (list): A list of partitioned subgraphs (Data objects).
+        undirected (bool): Whether to divide edge counts by 2 for undirected graphs.
+
     Returns:
-        global_df: DataFrame with global graph stats
-        subgraph_df: DataFrame with per-subgraph stats
+        tuple: (global_df, subgraph_df) Pandas DataFrames containing the statistics.
     """
     # global graph stats
     num_nodes_global = global_graph.num_nodes
@@ -106,31 +125,45 @@ def compute_graph_stats(global_graph, subgraphs, undirected=True):
     return global_df, subgraph_df
 
 def get_data(dataset):
+    """
+    Loads standard node classification datasets.
+
+    Args:
+        dataset (str): The name of the dataset to load.
+
+    Returns:
+        tuple: (data object, num_classes, num_node_features)
+    """
     data_path = os.path.join("data", dataset)
 
     if dataset in ['Cora', 'CiteSeer', 'PubMed']:
-        data = datasets.Planetoid(
+        ds = datasets.Planetoid(
             data_path,
             dataset,
             transform=T.NormalizeFeatures()
-        )[0]
+        )
+        data = ds[0]
     elif dataset in ['Computers', 'Photo']:
-        data = datasets.Amazon(
+        ds = datasets.Amazon(
             data_path,
             dataset,
             transform=T.NormalizeFeatures()
-        )[0]
+        )
+        
+        data = ds[0]
 
         # create empty masks (will fill later)
         data.train_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
         data.val_mask   = torch.zeros(data.num_nodes, dtype=torch.bool)
         data.test_mask  = torch.zeros(data.num_nodes, dtype=torch.bool)
     elif dataset in ['ogbn-arxiv']:
-        data = PygNodePropPredDataset(
+        ds = PygNodePropPredDataset(
             dataset,
             root=data_path,
             transform=T.ToUndirected()
-        )[0]
+        )
+        
+        data = ds[0]
 
         # fix label shape
         data.y = data.y.view(-1)
@@ -141,18 +174,35 @@ def get_data(dataset):
         data.test_mask  = torch.zeros(data.num_nodes, dtype=torch.bool)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
-
-    return data
+   
+    return data, ds.num_classes, ds.num_node_features
 
 def setup_datasets(dataset_name, num_clients, partition_method, seed, split_seed):
-    global_graph = get_data(dataset_name)
+    """
+    Full pipeline to load, split, and partition datasets for Subgraph Federated Learning.
+
+    Args:
+        dataset_name (str): Name of the dataset.
+        num_clients (int): Number of clients to partition the graph for.
+        partition_method (str): Algorithm for clustering/partitioning.
+        seed (int): Seed for the partitioner.
+        split_seed (int): Seed for generating train/val/test masks.
+
+    Returns:
+        tuple: (subgraphs list, global stats DF, client stats DF, num_classes, num_node_features)
+    """
+    global_graph, num_classes, num_node_features  = get_data(dataset_name)
 
     global_graph = split_train_val_test(global_graph, split_seed)
 
-    subgraphs = partition_graph(global_graph, num_subgraphs=num_clients, method=partition_method, seed = seed)
+    if num_clients == 1:
+        global_graph.num_inter_edges = 0
+        subgraphs = [global_graph]
+    else:
+        subgraphs = partition_graph(global_graph, num_subgraphs=num_clients, method=partition_method, seed = seed)
 
     global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
 
-    return subgraphs, global_stats, client_stats 
+    return subgraphs, global_stats, client_stats, num_classes, num_node_features 
 
 

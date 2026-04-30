@@ -1,10 +1,18 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import GINConv, global_add_pool, global_mean_pool, GCNConv, GATConv, SAGEConv
-from torch_geometric.nn import global_max_pool as gmp
-from torch_geometric.nn import MessagePassing
+from torch_geometric.nn import GINConv
 
 class serverGIN(torch.nn.Module):
+    """
+    A simplified Graph Isomorphism Network (GIN) for the central server.
+    
+    This acts as a structural template to hold the aggregated global weights 
+    for the convolutional layers.
+
+    Args:
+        nlayer (int): Number of GINConv layers.
+        nhid (int): Dimensionality of hidden units.
+    """
     def __init__(self, nlayer, nhid):
         super(serverGIN, self).__init__()
         self.graph_convs = torch.nn.ModuleList()
@@ -17,6 +25,16 @@ class serverGIN(torch.nn.Module):
             self.graph_convs.append(GINConv(self.nnk))
 
 class GIN(torch.nn.Module):
+    """
+    Standard Graph Isomorphism Network (GIN) for local client training.
+
+    Args:
+        nfeat (int): Number of input node features.
+        nhid (int): Dimensionality of hidden units.
+        nclass (int): Number of output classes.
+        nlayer (int): Number of GINConv layers.
+        dropout (float): Dropout probability.
+    """
     def __init__(self, nfeat, nhid, nclass, nlayer, dropout):
         super(GIN, self).__init__()
         self.num_layers = nlayer
@@ -75,122 +93,21 @@ class GIN(torch.nn.Module):
         return x, x1, x2
 
     def loss(self, pred, label, mask=None):
-        if mask is not None:
-            return F.nll_loss(pred[mask].to(torch.float32), label[mask].view(-1,))
-        return F.nll_loss(pred.to(torch.float32), label.view(-1,))
-
-class ogbGIN(torch.nn.Module):
-    def __init__(self, nclass, nhid=300, nlayer=5, dropout=0.5):
-        super(ogbGIN, self).__init__()
-        self.dropout = dropout
-        self.nlayer = nlayer
-        self.nhid = nhid
-        self.nclass = nclass
-        self.gnn_node = GNN_node(self.nlayer, self.nhid)
-        self.node_pred = torch.nn.Linear(self.nhid, self.nclass)
-    
-    def forward(self, batched_data):
         """
-        Performs a forward pass for Node Classification using the OGB GIN architecture.
+        Calculates the Negative Log-Likelihood loss.
 
         Args:
-            batched_data (torch_geometric.data.Data or Batch): A data object or batch containing 
-                node features (`x`), edge indices (`edge_index`), and edge attributes (`edge_attr`).
+            pred (torch.Tensor): The model's log-probability predictions.
+            label (torch.Tensor): The ground truth labels.
+            mask (torch.Tensor, optional): Boolean mask to selectively calculate 
+                loss on specific nodes (e.g., train_mask). Defaults to None.
 
         Returns:
-            tuple: A tuple of three tensors (x, x1, x2) representing the node-level outputs:
-                - x (torch.Tensor): Final node-level log-probabilities for each class.
-                  Shape: [total_num_nodes, nclass]. Used directly for calculating NLL loss.
-                - x1 (torch.Tensor): Pre-prediction node embeddings. In this node-classification 
-                  adaptation, this is identical to `x2`. Returned to preserve structural 
-                  compatibility with federated aggregation/evaluation functions.
-                  Shape: [total_num_nodes, nhid].
-                - x2 (torch.Tensor): Raw node representations outputted directly from the 
-                  core message-passing network (`GNN_node`).
-                  Shape: [total_num_nodes, nhid].
+            torch.Tensor: The computed scalar loss.
         """
-
-        h_node = self.gnn_node(batched_data)
-        x2 = h_node
-        x1 = h_node
-
-        x = self.node_pred(x1)
-        x = F.log_softmax(x, dim=1)
-
-        return x, x1, x2
-
-    def loss(self, pred, label, mask=None):
         if mask is not None:
             return F.nll_loss(pred[mask].to(torch.float32), label[mask].view(-1,))
         return F.nll_loss(pred.to(torch.float32), label.view(-1,))
-
-
-# USED IN ogbGIN:
-class GINConv2(MessagePassing):
-    def __init__(self, emb_dim):
-        '''
-            emb_dim (int): node embedding dimensionality
-        '''
-
-        super(GINConv2, self).__init__(aggr = "add")
-
-        self.mlp = torch.nn.Sequential(torch.nn.Linear(emb_dim, 2*emb_dim), 
-                                       torch.nn.BatchNorm1d(2*emb_dim), torch.nn.ReLU(), torch.nn.Linear(2*emb_dim, emb_dim))
-        self.eps = torch.nn.Parameter(torch.Tensor([0]))
-
-        self.edge_encoder = torch.nn.Linear(7, emb_dim)
-
-    def forward(self, x, edge_index, edge_attr):
-        edge_embedding = self.edge_encoder(edge_attr)
-        out = self.mlp((1 + self.eps) *x + self.propagate(edge_index, x=x, edge_attr=edge_embedding))
-        return out
-
-    def message(self, x_j, edge_attr):
-        return F.relu(x_j + edge_attr)
-
-    def update(self, aggr_out):
-        return aggr_out
-
-class GNN_node(torch.nn.Module):
-    def __init__(self, num_layer, emb_dim, dropout=0.5):
-        super(GNN_node, self).__init__()
-        self.num_layer = num_layer
-        self.dropout = dropout
-        self.node_encoder = torch.nn.Embedding(1, emb_dim)
-
-        self.convs = torch.nn.ModuleList()
-        self.batch_norms = torch.nn.ModuleList()
-
-        for layer in range(self.num_layer):
-            self.convs.append(GINConv2(emb_dim))
-            self.batch_norms.append(torch.nn.BatchNorm1d(emb_dim))
-    def forward(self, batched_data):
-        x, edge_index, edge_attr, batch = batched_data.x, batched_data.edge_index, batched_data.edge_attr, batched_data.batch
-        
-        h_list = [self.node_encoder(x).to(torch.float32)]
-        
-        for layer in range(self.num_layer):
-            # print(layer)
-            
-            h = self.convs[layer](h_list[layer].to(torch.float32), edge_index, edge_attr.to(torch.float32))
-            
-            h = self.batch_norms[layer](h)
-            
-
-            if layer == self.num_layer - 1:
-                #remove relu for the last layer
-                h = F.dropout(h, self.dropout, training=self.training)
-            else:
-                h = F.dropout(F.relu(h), self.dropout, training = self.training)
-
-
-            h_list.append(h)
-        node_representation = h_list[-1]
-        # print(node_representation.shape)
-        return node_representation
-
-
-
 
 
 
