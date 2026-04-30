@@ -5,11 +5,11 @@ import torch
 import numpy as np
 from pathlib import Path
 
-from setup import setup_dataset
+from src.setup import setup_dataset
 from src.models import GIN, serverGIN
-from plot import plot_client_metrics
-from client import Client
-from server import Server
+from src.plot import plot_client_metrics
+from src.client import Client
+from src.server import Server
 
 from src.training.selftrain import selftrain
 
