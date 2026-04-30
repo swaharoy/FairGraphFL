@@ -83,17 +83,8 @@ def create_stats_outpath(args, is_global):
     Path(dir_path).mkdir(parents=True, exist_ok=True)
     print(f"Output Path: {dir_path}")
 
-    # Determine suffix based on features # TODO: determine what im doing here
-    if not args.convert_x:
-        suffix = ""
-        print("Preparing data (original features) ...")
-    else:
-        suffix = "_degrs"
-        print("Preparing data (one-hot degree features) ...")
-
-
     prefix = "global_" if is_global else "subgraph_"
-    filename = f"{prefix}stats_trainData{suffix}.csv"
+    filename = f"{args.dataset}_{args.method}_{prefix}.csv"
 
     return os.path.join(dir_path, filename)
 

@@ -233,7 +233,7 @@ def louvain_cut(edge_index, num_nodes, num_subgraphs, delta, seed):
     }
 
     subgraph_node_ids = assign_nodes_to_subgraphs(
-        sorted_community_groups, num_nodes, num_subgraphs
+        sorted_community_groups, num_nodes, num_subgraphs, delta
     )
 
     return subgraph_node_ids
