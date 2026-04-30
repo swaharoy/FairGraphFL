@@ -185,7 +185,7 @@ if __name__ == '__main__':
     print(f"Wrote to {outf_global} and {outf_subgraph}")
 
     clients = init_clients(subgraphs, num_classes, args)
-    server = init_server(args.dataset)
+    server = init_server(args)
 
     if args.training == "selftrain" or args.training == "central":
         metrics = selftrain(clients, server, args.local_epoch)
