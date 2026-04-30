@@ -24,9 +24,6 @@ class GenData(object):
         self.node_labels = node_labels
         self.graph_labels = graph_labels
 
-
-
-
 def _randChunk(graphs, num_client, overlap, seed=None):
     random.seed(seed)
     np.random.seed(seed)
@@ -44,10 +41,6 @@ def _randChunk(graphs, num_client, overlap, seed=None):
         sizes = np.random.randint(low=50, high=150, size=num_client)
         for s in sizes:
             graphs_chunks.append(choices(graphs, k=s))
-
-
-
-
 
     return graphs_chunks
 
@@ -74,15 +67,12 @@ def fakechunk(graphs, num_client, overlap, seed=None):
     labels = kmeans.labels_
     for i, label in enumerate(labels):
         graphs_chunks[label].append(graphs[i])
+    
     return graphs_chunks
 
-
-    
 def add_zeros(data):
     data.x = torch.zeros(data.num_nodes, dtype=torch.long)
     return data
-
-
 
 def prepareData_oneDS(datapath, data, num_client, batchSize, convert_x=False, seed=None, overlap=False, aug=False):
     if data == "COLLAB":
@@ -95,7 +85,6 @@ def prepareData_oneDS(datapath, data, num_client, batchSize, convert_x=False, se
         train_set = UPFD(f"{datapath}/UPFD", 'gossipcop', 'content', 'train', ToUndirected())
         test_set = UPFD(f"{datapath}/UPFD", 'gossipcop', 'content', 'test', ToUndirected())
         val_set = UPFD(f"{datapath}/UPFD", 'gossipcop', 'content', 'val', ToUndirected())
-
     elif data == 'ogb':
         tudataset = PygGraphPropPredDataset(name = 'ogbg-ppa', transform=add_zeros)
         # print(tudataset[0])
@@ -127,13 +116,13 @@ def prepareData_oneDS(datapath, data, num_client, batchSize, convert_x=False, se
         #                     num_node_features, num_graph_labels, len(ds_train), ds_train)
         #     df = get_stats(df, ds, ds_train, graphs_val=ds_val, graphs_test=ds_test)
         #     return splitedData, df
-
-
     else:
         tudataset = TUDataset(f"{datapath}/TUDataset", data)
         if convert_x:
             maxdegree = get_maxDegree(tudataset)
             tudataset = TUDataset(f"{datapath}/TUDataset", data, transform=OneHotDegree(maxdegree, cat=False))
+   
+
     if data != 'fakenews':
         graphs = [x for x in tudataset]
         print("  **", data, len(graphs))
@@ -141,14 +130,20 @@ def prepareData_oneDS(datapath, data, num_client, batchSize, convert_x=False, se
         graphs = [x for x in train_set] + [x for x in test_set] + [x for x in val_set]
         print("  **", data, len(graphs))
         # print(graphs[0].is_directed())
+
+
     if data != 'fakenews':
         graphs_chunks = _randChunk(graphs, num_client, overlap, seed=seed)
     else:
         graphs_chunks = fakechunk(graphs, num_client, overlap, seed=seed)
+
+
     splitedData = {}
     df = pd.DataFrame()
     num_node_features = graphs[0].num_node_features
     #print(graphs_chunks)
+
+
     if aug:
         aug_rate = []
         for i in range(num_client):
@@ -272,25 +267,34 @@ def prepareData_multiDS(datapath, group='small', batchSize=32, convert_x=False, 
 def setup_devices(splitedData, args):
     idx_clients = {}
     clients = []
+
     for idx, ds in enumerate(splitedData.keys()):
         idx_clients[idx] = ds
+
         dataloaders, num_node_features, num_graph_labels, train_size, graphs_train = splitedData[ds]
+
         cmodel_gc = GIN(num_node_features, args.hidden, num_graph_labels, args.nlayer, args.dropout)
+
         if args.data_group == 'fakenews':
             cmodel_gc = newsModel(num_node_features, args.hidden, num_graph_labels, args.nlayer, args.dropout)
         if args.data_group == 'ogb':
             cmodel_gc = ogbGIN(num_graph_labels, args.hidden, args.nlayer, args.dropout)
+
         # optimizer = torch.optim.Adam(cmodel_gc.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, cmodel_gc.parameters()), lr=args.lr, weight_decay=args.weight_decay)
         clients.append(Client_GC(cmodel_gc, idx, ds, train_size, graphs_train, dataloaders, optimizer, args))
 
     smodel = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
+    
     if args.data_group == 'fakenews':
         smodel = newsModel(num_node_features, args.hidden, num_graph_labels, args.nlayer, args.dropout)
         smodel = serverNewsModel(num_node_features, args.hidden)
+   
     if args.data_group == 'ogb':
         smodel = ogbGIN(num_graph_labels, args.hidden, args.nlayer, args.dropout)
+  
     # smodel = newsModel(num_node_features, args.hidden, num_graph_labels, args.nlayer, args.dropout)  
     # smodel = GIN(num_node_features, args.hidden, num_graph_labels, args.nlayer, args.dropout)
     server = Server(smodel, args.device)
+    
     return clients, server, idx_clients

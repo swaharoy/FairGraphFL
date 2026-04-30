@@ -14,6 +14,10 @@ from torch.linalg import norm
 from sklearn.cluster import KMeans
 import subprocess
 
+
+### TODO: when modifying for node classification will be removing lots od dataLoader stuff
+
+
 class Motif_graph():
     def __init__(self, graph, motif_dict, motif=None):
         self.graph = graph
@@ -342,7 +346,7 @@ class Client_GC():
 
         dataset = MotifDataset(self.motif_dataset)
         
-        trainloader = DataLoader(dataset, batch_size=128, shuffle = False)
+        trainloader = DataLoader(dataset, batch_size=128, shuffle = False) # TODO: removing DataLoader
         
         self.backup = deepcopy(self.model)
         self.model.train()
