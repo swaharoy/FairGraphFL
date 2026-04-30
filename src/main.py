@@ -180,9 +180,14 @@ if __name__ == '__main__':
 
     outf_global = create_stats_outpath(args, is_global = True)
     outf_subgraph = create_stats_outpath(args, is_global = False)
+
+    print(global_stats)
+    print(subgraph_stats)
+    
     global_stats.to_csv(outf_global)
     subgraph_stats.to_csv(outf_subgraph)
     print(f"Wrote to {outf_global} and {outf_subgraph}")
+ 
 
     clients = init_clients(subgraphs, num_classes, args)
     server = init_server(args)
