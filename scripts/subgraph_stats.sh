@@ -16,7 +16,7 @@ for dataset in "${DATASETS[@]}"; do
     echo "======================================"
 
     python main.py \
-      --data_group "$dataset" \
+      --dataset "$dataset" \
       --num_clients "$NUM_CLIENTS" \
       --partition "$partition" \
       --seed "$SEED"
