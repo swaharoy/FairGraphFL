@@ -141,7 +141,7 @@ def init_clients(subgraphs, num_classes, args) -> list[Client]:
     for idx, subgraph in enumerate(subgraphs):
         idx_clients[idx] = subgraph
 
-        model = GIN(nfeat= num_node_features, nhid= args.hidden, num_classes= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+        model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
 
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
         clients.append(Client(client_id=idx, model= model, subgraph= subgraph, optimizer=optimizer, args=args))
