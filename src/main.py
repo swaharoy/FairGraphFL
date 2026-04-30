@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 
 from models import GIN, serverGIN
-# from net import GCN
+from net import GCN
 from plot import plot_client_metrics
 from client import Client
 from server import Server
@@ -122,7 +122,7 @@ def create_stats_outpath(args, is_global):
 
     return os.path.join(dir_path, filename)
 
-def init_clients(subgraphs, num_classes, args) -> list[Client]:
+def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client]:
     """
     Initializes the local models and configurations for all federated clients.
 
@@ -143,8 +143,8 @@ def init_clients(subgraphs, num_classes, args) -> list[Client]:
         idx_clients[idx] = subgraph
 
         print(f"num node: {num_node_features}")
-        model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
-        # model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+        # model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+        model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
 
 
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
@@ -152,7 +152,7 @@ def init_clients(subgraphs, num_classes, args) -> list[Client]:
 
     return clients
 
-def init_server(args):
+def init_server(num_classes, num_node_features, args):
     """
     Initializes the central server that handles global aggregation.
 
@@ -163,8 +163,8 @@ def init_server(args):
         Server: The instantiated central server object.
     """
 
-    model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
-    # model =  GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+    # model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
+    model =  GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
   
     return Server(model, args.device)
 
@@ -194,8 +194,8 @@ if __name__ == '__main__':
     print(f"Wrote to {outf_global} and {outf_subgraph}")
  
 
-    clients = init_clients(subgraphs, num_classes, args)
-    server = init_server(args)
+    clients = init_clients(subgraphs, num_classes, num_node_features, args)
+    server = init_server(num_classes, num_node_features, args)
 
     if args.training == "selftrain" or args.training == "central":
         metrics = selftrain(clients, server, args.local_epoch)
