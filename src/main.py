@@ -6,6 +6,7 @@ import numpy as np
 from pathlib import Path
 
 from models import GIN, serverGIN
+# from net import GCN
 from plot import plot_client_metrics
 from client import Client
 from server import Server
@@ -141,7 +142,10 @@ def init_clients(subgraphs, num_classes, args) -> list[Client]:
     for idx, subgraph in enumerate(subgraphs):
         idx_clients[idx] = subgraph
 
+        print(f"num node: {num_node_features}")
         model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+        # model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+
 
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
         clients.append(Client(client_id=idx, model= model, subgraph= subgraph, optimizer=optimizer, args=args))
@@ -160,6 +164,7 @@ def init_server(args):
     """
 
     model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
+    # model =  GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
   
     return Server(model, args.device)
 
