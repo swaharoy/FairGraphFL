@@ -79,25 +79,23 @@ def set_seed(seed):
     torch.cuda.manual_seed(seed)
 
 def create_stats_outpath(args, is_global):
-    outpath = os.path.join(args.outbase, f"initPartitioningImpl")
-    Path(outpath).mkdir(parents=True, exist_ok=True)
-    print(f"Output Path: {outpath}")
+    dir_path = os.path.join(args.outbase, "initPartitioningImpl")
+    Path(dir_path).mkdir(parents=True, exist_ok=True)
+    print(f"Output Path: {dir_path}")
 
-    if not args.convert_x: # TODO: determine what im doing here
-        """ using original features """
+    # Determine suffix based on features # TODO: determine what im doing here
+    if not args.convert_x:
         suffix = ""
         print("Preparing data (original features) ...")
     else:
-        """ using node degree features """
         suffix = "_degrs"
         print("Preparing data (one-hot degree features) ...")
 
-    if is_global:
-        outpath = os.path.join(outpath, f'global_')
-    else:
-        outpath = os.path.join(outpath, f'subgraph_')
 
-    return os.path.join(outpath, f'stats_trainData{suffix}.csv')
+    prefix = "global_" if is_global else "subgraph_"
+    filename = f"{prefix}stats_trainData{suffix}.csv"
+
+    return os.path.join(dir_path, filename)
 
 if __name__ == '__main__':
     args = parse_args()
