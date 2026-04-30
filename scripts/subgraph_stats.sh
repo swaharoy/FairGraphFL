@@ -4,9 +4,9 @@ DATASETS=("Cora" "CiteSeer" "PubMed", "Computers", "Photo", "ogbn-arxiv")
 
 PARTITIONS=("random" "metis" "louvain" "kmeans")
 
-NUM_CLIENTS = 10
+NUM_CLIENTS=10
 
-SEED = 1
+SEED=1
 
 for dataset in "${DATASETS[@]}"; do
   for partition in "${PARTITIONS[@]}"; do
