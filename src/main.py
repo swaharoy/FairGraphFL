@@ -78,7 +78,7 @@ def parse_args():
     parser.add_argument('--disable_dp', type=bool, default=False)
 
     parser.add_argument('--training', help='FL training framework',
-                    type=str, default='fedavg')
+                    type=str, default='selftrain')
 
     try:
         args = parser.parse_args()
@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
     args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    if args.training == "global":
+    if args.training == "central":
         args.num_clients = 1
         
     subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset.setup_datasets(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     clients = init_clients(subgraphs, num_classes, args)
     server = init_server(args.dataset)
 
-    if args.training == "selftrain" or args.training == "global":
+    if args.training == "selftrain" or args.training == "central":
         metrics = selftrain(clients, server, args.local_epoch)
     elif args.training == "fedavg":
         metrics = {}
