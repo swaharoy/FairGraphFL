@@ -84,7 +84,7 @@ def create_stats_outpath(args, is_global):
     print(f"Output Path: {dir_path}")
 
     prefix = "global_" if is_global else "subgraph_"
-    filename = f"{args.dataset}_{args.method}_{prefix}.csv"
+    filename = f"{args.dataset}_{args.partition}_{prefix}.csv"
 
     return os.path.join(dir_path, filename)
 
