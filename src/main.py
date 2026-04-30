@@ -7,7 +7,12 @@ from pathlib import Path
 import copy
 
 from data import setup_dataset
-   
+from src.models import GIN, ogbGIN, serverGIN
+from archive_src.client import Client_GC
+from archive_src.server import Server
+
+from src.training.selftrain import selftrain
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str, default='cpu',
@@ -65,6 +70,9 @@ def parse_args():
     parser.add_argument('--aug', type=bool, default=False)
     parser.add_argument('--disable_dp', type=bool, default=False)
 
+    parser.add_argument('--training', help='FL training framework',
+                    type=str, default='fedavg')
+
     try:
         args = parser.parse_args()
     except IOError as msg:
@@ -88,6 +96,32 @@ def create_stats_outpath(args, is_global):
 
     return os.path.join(dir_path, filename)
 
+def init_clients(subgraphs, args):
+    idx_clients = {}
+    clients = []
+
+    for idx, subgraph in enumerate(subgraphs):
+        idx_clients[idx] = subgraph
+
+        if args.data_group == 'ogb':
+            model = ogbGIN(num_graph_labels, args.hidden, args.nlayer, args.dropout)
+        else:
+            model = GIN(num_node_features, args.hidden, num_graph_labels, args.nlayer, args.dropout)
+
+
+        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, client_model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
+        clients.append(Client_GC(model, idx, subgraph, train_size, graphs_train, dataloaders, optimizer, args))
+
+    return clients
+
+def init_server(dataset_name):
+    if args.data_group == 'ogb':
+        model = ogbGIN(num_graph_labels, args.hidden, args.nlayer, args.dropout)
+    else:
+        model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
+  
+    return Server(model, args.device)
+
 if __name__ == '__main__':
     args = parse_args()
    
@@ -96,7 +130,7 @@ if __name__ == '__main__':
 
     args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    setup_dataset, global_stats, subgraph_stats = setup_dataset.setup_datasets(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
+    subgraphs, global_stats, subgraph_stats = setup_dataset.setup_datasets(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
 
     print(f"Subgraph construction from dataset {args.dataset} complete.")
 
@@ -105,5 +139,20 @@ if __name__ == '__main__':
     global_stats.to_csv(outf_global)
     subgraph_stats.to_csv(outf_subgraph)
     print(f"Wrote to {outf_global} and {outf_subgraph}")
+
+    clients = init_clients(subgraphs, args)
+    server = init_server(args.dataset)
+
+    if args.training == "selftrain":
+        selftrain(clients, server, args.local_epoch)
+    elif args.training == "fedavg":
+        pass
+    elif args.training == "fairfedmotif":
+        pass
+    else:
+        raise ValueError(f"Unknown training framework: {args.training}")
+
+        
+
 
     

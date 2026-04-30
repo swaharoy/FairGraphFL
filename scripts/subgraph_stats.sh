@@ -15,7 +15,7 @@ for dataset in "${DATASETS[@]}"; do
     echo "Running dataset=$dataset partition=$partition"
     echo "======================================"
 
-    python main.py \
+    python src/main.py \
       --dataset "$dataset" \
       --num_clients "$NUM_CLIENTS" \
       --partition "$partition" \
