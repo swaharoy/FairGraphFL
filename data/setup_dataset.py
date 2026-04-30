@@ -15,10 +15,13 @@ import numpy as np
 from data.partition import partition_graph
 from torch_geometric import datasets
 import torch_geometric.transforms as T
+from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
+
 from ogb.nodeproppred import PygNodePropPredDataset
 
 torch.serialization.add_safe_globals([
-    torch_geometric.data.data.DataEdgeAttr
+    DataEdgeAttr,
+    DataTensorAttr
 ])
 
 
