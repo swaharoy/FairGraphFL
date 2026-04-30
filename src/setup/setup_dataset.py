@@ -177,7 +177,7 @@ def get_data(dataset):
    
     return data, ds.num_classes, ds.num_node_features
 
-def setup_datasets(dataset_name, num_clients, partition_method, seed, split_seed):
+def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed):
     """
     Full pipeline to load, split, and partition datasets for Subgraph Federated Learning.
 

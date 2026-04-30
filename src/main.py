@@ -5,11 +5,11 @@ import torch
 import numpy as np
 from pathlib import Path
 
-from src.setup import setup_dataset
-from src.models import GIN, serverGIN
-from src.plot import plot_client_metrics
-from src.client import Client
-from src.server import Server
+from setup.setup_dataset import setup_dataset
+from models import GIN, serverGIN
+from plot import plot_client_metrics
+from client import Client
+from server import Server
 
 from src.training.selftrain import selftrain
 
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     if args.training == "central":
         args.num_clients = 1
         
-    subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset.setup_datasets(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
+    subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
 
     print(f"Subgraph construction from dataset {args.dataset} complete.")
 
