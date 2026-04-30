@@ -18,8 +18,8 @@ def selftrain(clients: list[Client], server: Server, local_epoch):
         dict: A dictionary mapping each client ID to a list containing their 
               final training accuracy, validation accuracy, and test accuracy.
     """
-    for client in clients:
-        client.download_from_server(server)
+    # for client in clients:
+    #     client.download_from_server(server)
 
     allAccs = {}
     for client in clients:
