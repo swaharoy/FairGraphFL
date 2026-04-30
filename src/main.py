@@ -197,6 +197,7 @@ if __name__ == '__main__':
         raise ValueError(f"Unknown training framework: {args.training}")
 
     if metrics:
+        print(metrics)
         plot_client_metrics(metrics)
         
 
