@@ -21,7 +21,8 @@ from ogb.nodeproppred import PygNodePropPredDataset
 
 torch.serialization.add_safe_globals([
     DataEdgeAttr,
-    DataTensorAttr
+    DataTensorAttr,
+    torch_geometric.data.storage.GlobalStorage
 ])
 
 
