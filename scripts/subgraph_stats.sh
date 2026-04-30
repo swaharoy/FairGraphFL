@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATASETS=("Cora" "CiteSeer" "PubMed", "Computers", "Photo", "ogbn-arxiv")
+DATASETS=("Cora" "CiteSeer" "PubMed" "Computers" "Photo" "ogbn-arxiv")
 
 PARTITIONS=("random" "metis" "louvain" "kmeans")
 

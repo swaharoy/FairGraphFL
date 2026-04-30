@@ -15,6 +15,10 @@ from torch_geometric import datasets
 import torch_geometric.transforms as T
 from ogb.nodeproppred import PygNodePropPredDataset
 
+torch.serialization.add_safe_globals([
+    torch_geometric.data.data.DataEdgeAttr
+])
+
 
 def split_train_val_test(data, seed, train_ratio=0.2, val_ratio=0.35):
     num_nodes = data.num_nodes
