@@ -13,7 +13,7 @@ from server import Server
 
 from dataset.setup_dataset import setup_dataset
 from training.selftrain import selftrain
-from training.fedavg import fedavg
+from training.fedavg import fedavg, fedavg_with_prototypes
 
 def parse_args():
     """
@@ -180,7 +180,8 @@ if __name__ == '__main__':
         args.num_clients = 1
         
     subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
-
+    args.num_classes = num_classes
+    
     print(f"Subgraph construction from dataset {args.dataset} complete.")
 
     outf_global = create_stats_outpath(args, is_global = True)
@@ -201,6 +202,8 @@ if __name__ == '__main__':
         metrics = selftrain(clients=clients, server=server, local_epoch=args.local_epoch)
     elif args.training == "fedavg":
         metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch)
+    elif args.training == "fedavg-prototypes":
+        metrics = fedavg_with_prototypes(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch)
     elif args.training == "fairfedmotif":
         metrics = None
     else:

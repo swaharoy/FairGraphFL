@@ -24,7 +24,50 @@ class Server():
         """
         self.model = model.to(device)
         self.W = {key: value for key, value in self.model.named_parameters()}  # points to named_parameters()
+
+        self.vocab = {} # motif_key: count_across_all_clients
+        self.num_client = {} # motif_key: num_of_clients with motif_key
+        self.global_prototype = {} # motif_key: prototype
     
+    def aggregate_prototype(self, clients):
+        """
+        Aggregates client prototypes into a global prototype weighted by motif frequency.
+        """
+        # clear state from previous federated rounds
+        self.clear_prototypes()
+
+        # populate vocab + num_client
+        for client in clients:
+            for key, count in client.motif_count.items():
+                if key not in self.vocab:
+                    self.vocab[key] = count
+                    self.num_client[key] = 1
+                else:
+                    self.vocab[key] += count
+                    self.num_client[key] += 1
+        
+        # construct global prototype using pure frequency weighting
+        for client in clients:
+            for key, count in client.motif_count.items():
+                
+                # weight is simply (local_count / total_global_count)
+                weight = count / self.vocab[key] 
+                weighted_client_proto = weight * client.prototype[key]
+                
+                if key not in self.global_prototype:
+                    self.global_prototype[key] = weighted_client_proto
+                else:    
+                    self.global_prototype[key] += weighted_client_proto
+                    
+        # extract data 
+        for key in self.global_prototype.keys():
+            self.global_prototype[key] = self.global_prototype[key].data
+
+    def clear_prototypes(self):
+        self.vocab = {} 
+        self.num_client = {} 
+        self.global_prototype = {} 
+
     def rand_sample_clients(self, all_clients, frac):
         """
         Randomly samples a subset of clients for a federated communication round.

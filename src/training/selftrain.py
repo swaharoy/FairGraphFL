@@ -20,7 +20,7 @@ def selftrain(clients: list[Client], server: Server, local_epoch):
               final training accuracy, validation accuracy, and test accuracy.
     """
     for client in clients:
-        client.download_from_server(server)
+        client.download_weights_from_server(server)
 
     for client in clients:
         client.local_train(local_epoch)

@@ -27,7 +27,7 @@ def fedavg(clients: list[Client], server: Server, communication_rounds, local_ep
             selected_clients = server.rand_sample_clients(clients, frac)
 
         for client in selected_clients:
-            client.download_from_server(server)
+            client.download_weights_from_server(server)
         
         for client in selected_clients:
             client.local_train(local_epoch)
@@ -37,9 +37,46 @@ def fedavg(clients: list[Client], server: Server, communication_rounds, local_ep
     # sync all clients w server
     for client in clients:
         print(f"Client {client.id} train size: {client.train_size}")
-        client.download_from_server(server)
+        client.download_weights_from_server(server)
 
         
+
+    metrics_df = collect_and_print_client_metrics(clients)
+    return metrics_df
+
+def fedavg_with_prototypes(clients: list[Client], server: Server, communication_rounds, local_epoch):
+    """
+    Excutes FedAvg with prototype alignment.
+
+    Args:
+        clients (list[Client]): A list of initialized client objects participating in the training.
+        server (Server): The central server coordinating the global model.
+        communication_rounds (int): The total number of federated training rounds.
+        local_epoch (int): The number of local training epochs each client performs per round.
+
+    Returns:
+        pandas.DataFrame: A dataframe containing the final evaluation metrics for all clients.
+    """
+    
+    for client in clients:
+        client.construct_motifs()
+    
+    for c_round in range(1, communication_rounds + 1):
+        if (c_round) % 50 == 0:
+            print(f"  > round {c_round}")
+        
+        for client in clients:
+            client.download_weights_from_server(server)
+
+        for client in clients:
+                client.prototype_update()
+        
+        server.aggregate_prototype(clients)
+
+        for client in clients:
+            client.train_with_prototypes(server)
+
+        server.aggregate_weights(clients)
 
     metrics_df = collect_and_print_client_metrics(clients)
     return metrics_df
