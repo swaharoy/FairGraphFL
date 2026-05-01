@@ -142,7 +142,6 @@ def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client
     for idx, subgraph in enumerate(subgraphs):
         idx_clients[idx] = subgraph
 
-        print(f"num node: {num_node_features}")
         model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
         # model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
 
