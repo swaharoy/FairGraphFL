@@ -13,6 +13,7 @@ class Client():
         device (torch.device): The computation device.
         model (torch.nn.Module): The local GNN model.
         subgraph (torch_geometric.data.Data): The client's local graph data.
+        train_size (int) Number of nodes in client's train set.
         optimizer (torch.optim.Optimizer): The optimizer for local training.
         W (dict): A dictionary of the local model's named parameters.
         gconvNames (list): Keys of the global convolution layers from the server.
@@ -26,6 +27,7 @@ class Client():
         self.model = model.to(self.device)
 
         self.subgraph = subgraph
+        self.train_size = subgraph.train_mask.sum().item()
         
         self.optimizer = optimizer
 
@@ -89,7 +91,7 @@ class Client():
             losses_test.append(loss_tt)
             accs_test.append(acc_tt)
 
-        
+        # TODO: determine if want to store history (not rewrite for each c_round)
         self.train_stats =  {'trainingLosses': losses_train, 'trainingAccs': accs_train, 'valLosses': losses_val, 'valAccs': accs_val,
             'testLosses': losses_test, 'testAccs': accs_test}
 

@@ -13,6 +13,7 @@ from server import Server
 
 from dataset.setup_dataset import setup_dataset
 from training.selftrain import selftrain
+from training.fedavg import fedavg
 
 def parse_args():
     """
@@ -197,17 +198,15 @@ if __name__ == '__main__':
     server = init_server(num_classes, num_node_features, args)
 
     if args.training == "selftrain" or args.training == "central":
-        metrics = selftrain(clients, server, args.local_epoch)
+        metrics = selftrain(clients=clients, server=server, local_epoch=args.local_epoch)
     elif args.training == "fedavg":
-        metrics = {}
+        metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch)
     elif args.training == "fairfedmotif":
-        metrics = {}
+        metrics = None
     else:
         raise ValueError(f"Unknown training framework: {args.training}")
 
-    if metrics:
-        print(metrics)
-        plot_client_metrics(metrics)
+    # TODO: save metrics?
         
 
 

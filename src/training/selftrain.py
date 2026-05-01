@@ -1,5 +1,6 @@
 from client import Client
 from server import Server
+from metrics import collect_and_print_client_metrics
 
 def selftrain(clients: list[Client], server: Server, local_epoch):
     """
@@ -21,12 +22,11 @@ def selftrain(clients: list[Client], server: Server, local_epoch):
     for client in clients:
         client.download_from_server(server)
 
-    allAccs = {}
     for client in clients:
         client.local_train(local_epoch)
 
         loss, acc = client.evaluate()
-        allAccs[client.id] = [client.train_stats['trainingAccs'][-1], client.train_stats['valAccs'][-1], acc]
-        print("  > {} done.".format(client.id))
-
-    return allAccs
+        
+    
+    metrics_df = collect_and_print_client_metrics(clients)
+    return metrics_df
