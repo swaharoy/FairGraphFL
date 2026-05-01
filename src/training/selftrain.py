@@ -1,6 +1,6 @@
 from client import Client
 from server import Server
-from metrics import collect_and_print_client_metrics
+from training.metrics import collect_and_print_client_metrics
 
 def selftrain(clients: list[Client], server: Server, local_epoch):
     """

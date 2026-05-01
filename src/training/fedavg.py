@@ -1,8 +1,7 @@
-from metrics import collect_and_print_client_metrics
-
-
 from client import Client
 from server import Server
+from training.metrics import collect_and_print_client_metrics
+
 
 def fedavg(clients: list[Client], server: Server, communication_rounds, local_epoch, frac=1.0):
     """
