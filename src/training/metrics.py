@@ -6,9 +6,9 @@ def collect_client_metrics(clients: list[Client]):
 
     for client in clients:
         _, acc = client.evaluate()
-        frame.loc[client.client_id, 'test_acc'] = acc
+        frame.loc[client.id, 'test_acc'] = acc
         
-        print("  > {} done.".format(client.client_id))
+        print("  > {} done.".format(client.id))
 
     return frame
 
