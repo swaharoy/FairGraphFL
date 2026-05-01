@@ -2,6 +2,8 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.utils import to_networkx
 from sklearn.cluster import KMeans
+import networkx as nx
+
 
 
 class Client():
