@@ -151,12 +151,13 @@ class Server():
         
     def update_client_values(self, client_gradients):
         """
-            Update client value as a function of client and server gradient similarity and client diversity.
+            Update client value as a function of client and server gradient similarity and client diversity (if client diversity has been initialized).
         """
         phis = torch.tensor([F.cosine_similarity(flatten(gradient), flatten(self.gradients), 0, 1e-10) for gradient in client_gradients], device=self.device)
         for i in range(len(client_gradients)):
             self.client_values[i] = 0.95 * self.client_values[i] + 0.05 * phis[i]
-            self.client_values[i] *= self.client_diversity[i]
+            if self.client_diversity:
+                self.client_values[i] *= self.client_diversity[i]
         self.client_values = torch.div(self.client_values, self.client_values.sum())
 
     def allocate_payoff(self, clients):

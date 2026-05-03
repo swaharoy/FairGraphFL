@@ -7,9 +7,12 @@ from server import Server
 from training.metrics import collect_and_print_client_metrics
 from training.gradient_helpers import flatten, unflatten # TODO: torch built-in isntead?
 
-def fairfedmotif(clients: list[Client], server: Server, communication_rounds, local_epoch):
+
+
+def fairfed(clients: list[Client], server: Server, communication_rounds, local_epoch, with_prototypes = False):
     """
-    Excutes federated learning with incentive mechanism (gradient allocation, payoff) with prototypes.
+    Excutes federated learning with incentive mechanism (gradient allocation, payoff). 
+    Uses prototypes if with_prototypes is True.
 
     Args:
         clients (list[Client]): A list of initialized client objects participating in the training.
@@ -21,12 +24,13 @@ def fairfedmotif(clients: list[Client], server: Server, communication_rounds, lo
         pandas.DataFrame: A dataframe containing the final evaluation metrics for all clients.
     """
     
-    num_motifs_per_client = []
-    for client in clients:
-        client.construct_motifs()
-        num_motifs_per_client.append(len(client.motif_count.keys()))
+    if with_prototypes:
+        num_motifs_per_client = []
+        for client in clients:
+            client.construct_motifs()
+            num_motifs_per_client.append(len(client.motif_count.keys()))
+        server.init_client_diversity(num_motifs_per_client)
 
-    server.init_client_diversity(num_motifs_per_client)
     server.init_client_values(len(clients))
     
     # update client's internal reputation history
@@ -41,19 +45,23 @@ def fairfedmotif(clients: list[Client], server: Server, communication_rounds, lo
             for client in clients:
                 client.download_weights_from_server(server)
 
-        for client in clients:
-                client.prototype_update()
-        
-        if c_round == 1: 
-            server.aggregate_prototype(clients)
-        else:
-            server.aggregate_prototype_by_client_value(clients)
+        if with_prototypes:
+            for client in clients:
+                    client.prototype_update()
+            
+            if c_round == 1: 
+                server.aggregate_prototype(clients)
+            else:
+                server.aggregate_prototype_by_client_value(clients)
 
         client_gradients = []
         for client in clients:
             old_model = deepcopy(client.model)
 
-            client.train_with_prototypes(server)
+            if with_prototypes:
+                client.train_with_prototypes(server)
+            else:
+                client.local_train(local_epoch)
 
             new_model = deepcopy(client.model)
 
@@ -67,7 +75,6 @@ def fairfedmotif(clients: list[Client], server: Server, communication_rounds, lo
                     # calculate gradient strictly for the shared layers
                     grad = new_params[param_name].data - old_params[param_name].data
                     local_gradient.append(grad)
-            print(f"len of local grad: {len(local_gradient)}")
 
             flattened = flatten(local_gradient)
             norm_value = norm(flattened) + 1e-7
@@ -84,7 +91,6 @@ def fairfedmotif(clients: list[Client], server: Server, communication_rounds, lo
         for i in range(len(clients)):
             clients[i].reputation.append(server.client_values[i])
 
-        
         reward_gradients_per_client = server.allocate_gradients()
 
         # allocate reward gradient to each client

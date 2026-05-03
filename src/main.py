@@ -13,8 +13,8 @@ from server import Server
 
 from dataset.setup_dataset import setup_dataset
 from training.selftrain import selftrain
-from training.fedavg import fedavg, fedavg_with_prototypes
-from training.fairfedmotif import fairfedmotif
+from training.fedavg import fedavg
+from training.fairfedmotif import fairfed
 
 def parse_args():
     """
@@ -65,6 +65,7 @@ def parse_args():
                         type=int, default=10)
     parser.add_argument('--partition', help='subgraph partitioning method',
                         type=str, default='random')
+    parser.add_argument('--prototypes', help = 'use prototypes for fedavg or fairfed', type=bool, default=False)
     parser.add_argument('--overlap', help='whether clients have overlapped data',
                         type=bool, default=False)
     parser.add_argument('--standardize', help='whether to standardize the distance matrix',
@@ -202,11 +203,9 @@ if __name__ == '__main__':
     if args.training == "selftrain" or args.training == "central":
         metrics = selftrain(clients=clients, server=server, local_epoch=args.local_epoch)
     elif args.training == "fedavg":
-        metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch)
-    elif args.training == "fedavg-prototypes":
-        metrics = fedavg_with_prototypes(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch)
-    elif args.training == "fairfedmotif":
-        metrics = fairfedmotif(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch)
+        metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=args.prototypes)
+    elif args.training == "fairfed":
+        metrics = fairfed(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=args.prototypes)
     else:
         raise ValueError(f"Unknown training framework: {args.training}")
 
