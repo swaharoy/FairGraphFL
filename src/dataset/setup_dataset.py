@@ -200,6 +200,25 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
     else:
         subgraphs = partition_graph(global_graph, num_subgraphs=num_clients, method=partition_method, seed = seed)
 
+    # determine split ratios based on dataset
+    if dataset_name == 'ogbn-arxiv':
+        train_ratio = 0.05
+        val_ratio = 47.5
+    else:
+        train_ratio = 0.20
+        val_ratio = 0.40
+
+    # apply the train/val/test splits PER SUBGRAPH
+    for i in range(len(subgraphs)):
+        # We add 'i' to the split_seed so that if two subgraphs happen to 
+        # have the exact same number of nodes, they get differently randomized masks
+        subgraphs[i] = split_train_val_test(
+            subgraphs[i], 
+            seed=(split_seed + i), 
+            train_ratio=train_ratio, 
+            val_ratio=val_ratio
+        )
+
     global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
 
     return subgraphs, global_stats, client_stats, num_classes, num_node_features 
