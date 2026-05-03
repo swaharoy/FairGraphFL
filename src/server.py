@@ -28,7 +28,8 @@ class Server():
             model (torch.nn.Module): The global GNN model instance.
             device (torch.device): The device (CPU or CUDA) to host the model on.
         """
-        self.model = model.to(device)
+        self.device = device
+        self.model = model.to(self.device)
         self.W = {key: value for key, value in self.model.named_parameters()}  # points to named_parameters()
 
         self.vocab = {} # motif_key: count_across_all_clients
