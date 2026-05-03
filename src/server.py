@@ -182,7 +182,7 @@ class Server():
         for client in clients:
             client.payoff[-1] /= total_payoff_c_round
 
-    def allocate_gradients(self, clients):
+    def allocate_gradients(self):
         """
             Mask global gradient for each client wrt client's value
         """
@@ -190,8 +190,8 @@ class Server():
         q_ratios = torch.div(q_ratios, torch.max(q_ratios))
 
         reward_gradient_per_client = []
-        for i, client in enumerate(clients):
-            reward_gradient = _mask_grad_update_by_order(self.gradients, mask_percentile=q_ratios[i], mode='all')
+        for q in q_ratios:
+            reward_gradient = _mask_grad_update_by_order(self.gradients, mask_percentile=q, mode='all')
             reward_gradient_per_client.append(reward_gradient)
         
         return reward_gradient_per_client
