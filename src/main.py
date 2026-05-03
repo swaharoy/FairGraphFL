@@ -139,11 +139,11 @@ def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client
         list[Client]: A list of instantiated Client objects.
     """
 
-    idx_clients = {}
     clients = []
+    
+    sorted_subgraphs = sorted(subgraphs, key=lambda sg: sg.num_inter_edges)
 
     for idx, subgraph in enumerate(subgraphs):
-        idx_clients[idx] = subgraph
 
         model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
         # model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
