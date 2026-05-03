@@ -14,6 +14,7 @@ from server import Server
 from dataset.setup_dataset import setup_dataset
 from training.selftrain import selftrain
 from training.fedavg import fedavg, fedavg_with_prototypes
+from training.fairfedmotif import fairfedmotif
 
 def parse_args():
     """
@@ -205,7 +206,7 @@ if __name__ == '__main__':
     elif args.training == "fedavg-prototypes":
         metrics = fedavg_with_prototypes(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch)
     elif args.training == "fairfedmotif":
-        metrics = None
+        metrics = fairfedmotif(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch)
     else:
         raise ValueError(f"Unknown training framework: {args.training}")
 
