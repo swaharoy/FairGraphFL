@@ -42,6 +42,9 @@ class Client():
 
         self.train_stats = {}
 
+        self.reputation = [] # agent value at each c_round
+        self.payoff = [] # agent payoff at each c_round
+
     def construct_motifs(self):
         """
         Constructs motifs (edges and small cycles) for a SINGLE subgraph partition.
