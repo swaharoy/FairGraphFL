@@ -7,7 +7,6 @@ from pathlib import Path
 
 from models import GIN, serverGIN
 from net import GCN
-from plot import plot_client_metrics
 from client import Client
 from server import Server
 
