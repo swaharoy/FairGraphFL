@@ -14,6 +14,7 @@ from dataset.setup_dataset import setup_dataset
 from training.selftrain import selftrain
 from training.fedavg import fedavg
 from training.fairfedmotif import fairfed
+from metrics import collect_all_metrics
 
 def parse_args():
     """
@@ -26,8 +27,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str, default='cpu',
                         help='CPU / GPU device.')
-    parser.add_argument('--num_repeat', type=int, default=5,
-                        help='number of repeating rounds to simulate;')
     parser.add_argument('--num_rounds', type=int, default=200,
                         help='number of rounds to simulate;')
     parser.add_argument('--local_epoch', type=int, default=1,
@@ -42,17 +41,13 @@ def parse_args():
                         help='Number of hidden units.')
     parser.add_argument('--dropout', type=float, default=0.5,
                         help='Dropout rate (1 - keep probability).')
-    parser.add_argument('--batch_size', type=int, default=128,
-                        help='Batch size for node classification.')
     parser.add_argument('--seed', help='seed for randomness;',
                         type=int, default=123)
 
-    parser.add_argument('--datapath', type=str, default='./data',
-                        help='The input path of data.')
     parser.add_argument('--outbase', type=str, default='./outputs',
                         help='The base path for outputting.')
    
-    parser.add_argument('--dataset', help='specify the  datasets',
+    parser.add_argument('--dataset', help='specify the dataset',
                         type=str, default='Cora')
     parser.add_argument('--num_clients', help='number of clients',
                         type=int, default=10)
@@ -64,13 +59,8 @@ def parse_args():
     parser.add_argument('--skip_client_idx', help='skip client at idx, must be in [0, num_clients)', type =int, default= 1 )
     parser.add_argument('--model', help='model type', type =str, default= "GIN" )
 
-   
-
     parser.add_argument('--lamb', type=float, default=0.1)
     parser.add_argument('--beta', type=float, default=0.85)
-    parser.add_argument('--aug', type=bool, default=False)
-
-
 
     try:
         args = parser.parse_args()
@@ -86,32 +76,10 @@ def set_seed(seed):
     Args:
         seed (int): The chosen seed value.
     """
-
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-
-def create_stats_outpath(args, is_global):
-    """
-    Generates the output file path for saving dataset statistics.
-
-    Args:
-        args (argparse.Namespace): Run configuration arguments.
-        is_global (bool): Flag indicating if the stats are for the global graph.
-
-    Returns:
-        str: Formatted filepath.
-    """
-
-    dir_path = os.path.join(args.outbase, "initPartitioningImpl")
-    Path(dir_path).mkdir(parents=True, exist_ok=True)
-    print(f"Output Path: {dir_path}")
-
-    prefix = "global_" if is_global else "subgraph_"
-    filename = f"{args.dataset}_{args.partition}_{prefix}.csv"
-
-    return os.path.join(dir_path, filename)
 
 def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client]:
     """
@@ -139,7 +107,6 @@ def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client
         else:
             print("client model: GIN")
             model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
-
 
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
         clients.append(Client(client_id=idx, model= model, subgraph= subgraph, optimizer=optimizer, args=args))
@@ -179,26 +146,15 @@ if __name__ == '__main__':
     if args.method == "central":
         args.num_clients = 1
         
-    global_graph, subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
+    global_graph, subgraphs, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
     args.num_classes = num_classes
     
     print(f"Subgraph construction from dataset {args.dataset} complete.")
 
-    # outf_global = create_stats_outpath(args, is_global = True)
-    # outf_subgraph = create_stats_outpath(args, is_global = False)
-
-    # print(global_stats)
-    # print(subgraph_stats)
-    
-    # global_stats.to_csv(outf_global)
-    # subgraph_stats.to_csv(outf_subgraph)
-    # print(f"Wrote to {outf_global} and {outf_subgraph}")
- 
-
     clients = init_clients(subgraphs=subgraphs, num_classes=num_classes, num_node_features=num_node_features, args=args)
     server = init_server(global_graph=global_graph, num_classes=num_classes, num_node_features=num_node_features, args=args)
 
-    if args.skip_client:
+    if args.skip_client: # for contribution testing
         if args.skip_client_idx >= args.num_clients:
              raise ValueError(f"skip client idx greater than num_cleints: {args.args.skip_client_idx} >= {args.num_clients:}")
         else:
@@ -208,7 +164,7 @@ if __name__ == '__main__':
                 clients[args.skip_client_idx + 1:]
             print(f"client remove, new len: {len(clients)} ")
             
-
+    incentives = False
     if args.method == "selftrain" or args.method == "central":
         metrics = selftrain(clients=clients, server=server, local_epoch=args.local_epoch)
     elif args.method == "fedavg":
@@ -216,13 +172,15 @@ if __name__ == '__main__':
     elif args.method == "fedavg-proto":
         metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=True)
     elif args.method == "fairfed":
+        incentives =  True
         metrics = fairfed(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=False)
     elif args.method == "fairfed-proto":
+        incentives =  True
         metrics = fairfed(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=True)
     else:
         raise ValueError(f"Unknown training framework: {args.method}")
 
-    # TODO: save metrics?
+    server_stats, client_stats, client_incentives = collect_all_metrics(server, clients, num_classes, num_node_features, incentives)
         
 
 

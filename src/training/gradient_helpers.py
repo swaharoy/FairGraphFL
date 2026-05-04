@@ -1,4 +1,3 @@
-import torch
 from torch.nn.utils import parameters_to_vector
 
 def flatten(tensor_list):

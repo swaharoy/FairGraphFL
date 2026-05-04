@@ -137,56 +137,6 @@ def split_train_val_test(data, seed, train_ratio=0.2, val_ratio=0.35):
     return data
 
 
-def compute_graph_stats(global_graph, subgraphs, undirected=True):
-    """
-    Computes structural statistics (nodes, edges) for the global and partitioned graphs.
-
-    Args:
-        global_graph (torch_geometric.data.Data): The original unpartitioned graph.
-        subgraphs (list): A list of partitioned subgraphs (Data objects).
-        undirected (bool): Whether to divide edge counts by 2 for undirected graphs.
-
-    Returns:
-        tuple: (global_df, subgraph_df) Pandas DataFrames containing the statistics.
-    """
-    # global graph stats
-    num_nodes_global = global_graph.num_nodes
-    num_edges_global = global_graph.edge_index.shape[1]
-
-    if undirected:
-        num_edges_global = num_edges_global // 2
-
-    global_df = pd.DataFrame([{
-        "num_nodes": num_nodes_global,
-        "num_edges": num_edges_global,
-    }])
-
-    # subgraph stats
-    subgraph_rows = []
-
-    for i, sg in enumerate(subgraphs):
-
-        num_nodes = sg.num_nodes
-
-        # intra edges 
-        num_intra_edges = sg.edge_index.shape[1]
-        if undirected:
-            num_intra_edges = num_intra_edges // 2
-
-        # inter edges = what you stored
-        num_inter_edges = getattr(sg, "num_inter_edges", None)
-
-        subgraph_rows.append({
-            "subgraph_id": i,
-            "num_nodes": num_nodes,
-            "num_intra_edges": num_intra_edges,
-            "num_inter_edges": num_inter_edges,
-        })
-
-    subgraph_df = pd.DataFrame(subgraph_rows)
-
-    return global_df, subgraph_df
-
 def get_data(dataset):
     """
     Loads standard node classification datasets.
@@ -252,13 +202,14 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
         split_seed (int): Seed for generating train/val/test masks.
 
     Returns:
-        tuple: (subgraphs list, global stats DF, client stats DF, num_classes, num_node_features)
+        tuple: (subgraphs list, num_classes, num_node_features)
     """
     global_graph, num_classes, num_node_features  = get_data(dataset_name)
 
+    # reserve global test set
     global_graph = create_global_test_mask(global_graph, seed=split_seed, test_ratio=0.1)  
 
-    if num_clients == 1:
+    if num_clients == 1: # central training setting
         global_graph.num_inter_edges = 0
         subgraphs = [global_graph]
     else:
@@ -273,7 +224,7 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
         val_ratio = 0.40
 
     # apply the train/val/test splits PER SUBGRAPH
-    if len(subgraphs) == 1:
+    if len(subgraphs) == 1: # central training setting
         subgraphs[0] = split_train_val_test(data=subgraphs[0], seed = split_seed, train_ratio=train_ratio, val_ratio=val_ratio)
     else:
         for i in range(len(subgraphs)):
@@ -287,8 +238,6 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
                 exclude_mask=global_graph.global_test_mask
             )
 
-    global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
-
-    return global_graph, subgraphs, global_stats, client_stats, num_classes, num_node_features 
+    return global_graph, subgraphs, num_classes, num_node_features 
 
 

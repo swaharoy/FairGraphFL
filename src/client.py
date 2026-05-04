@@ -136,6 +136,7 @@ class Client():
             self.prototype[key] = []
             
         print(f'Client {self.id} constructed {len(self.prototype.keys())} motifs from its subgraph.')
+        self.num_of_motifs = len(self.prototype.keys())
 
     def prototype_update(self):
         """

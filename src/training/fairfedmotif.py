@@ -4,8 +4,7 @@ from torch.linalg import norm
 import torch
 from client import Client
 from server import Server
-from training.metrics import collect_and_print_client_and_server_metrics
-from training.gradient_helpers import flatten, unflatten # TODO: torch built-in isntead?
+from training.gradient_helpers import flatten, unflatten
 
 
 
@@ -19,9 +18,6 @@ def fairfed(clients: list[Client], server: Server, communication_rounds, local_e
         server (Server): The central server coordinating the global model.
         communication_rounds (int): The total number of federated training rounds.
         local_epoch (int): The number of local training epochs each client performs per round.
-
-    Returns:
-        pandas.DataFrame: A dataframe containing the final evaluation metrics for all clients.
     """
     
     if with_prototypes:
@@ -100,6 +96,3 @@ def fairfed(clients: list[Client], server: Server, communication_rounds, local_e
         
         # update central model
         server.update_weights()
-
-    metrics_df = collect_and_print_client_and_server_metrics(clients, server)
-    return metrics_df
