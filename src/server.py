@@ -20,7 +20,7 @@ class Server():
         model (torch.nn.Module): The global graph neural network model.
         W (dict): A dictionary referencing the model's named parameters.
     """
-    def __init__(self, model, graph, device):
+    def __init__(self, model, graph, device, lr=1.0):
         """
         Initializes the Server.
 
@@ -29,6 +29,7 @@ class Server():
             device (torch.device): The device (CPU or CUDA) to host the model on.
         """
         self.device = device
+        self.lr = lr
         self.model = model.to(self.device)
         self.graph = graph
         self.W = {key: value for key, value in self.model.named_parameters()}  # points to named_parameters()
@@ -38,10 +39,33 @@ class Server():
         self.global_prototype = {} # motif_key: prototype
 
         self.client_values = []
-        self.client_diversity = []
+        self.client_diversity = None
 
         self.gradients = []
     
+    def eval_global_accuracy(self): # TODO: double check
+        """
+        Evalutes cenrtal model on global graph on the global test set.
+        Returns loss, test_acc.
+        """
+        self.model.eval()
+
+        data = self.graph.to(self.device)
+
+        with torch.no_grad():
+            pred, _, _ = self.model(data) 
+            label = data.y
+            mask =  data.global_test_mask
+
+            loss =  self.model.loss(pred, label, mask=mask).item()
+            
+            # Calculate accuracy
+            correct_predictions = pred[mask].max(dim=1)[1].eq(label[mask]).sum().item()
+            num_test_nodes = mask.sum().item()
+            test_acc = correct_predictions / num_test_nodes
+            
+            return loss, test_acc
+
     def init_client_values(self, num_of_clients):
         self.client_values = torch.zeros(num_of_clients)
 
@@ -150,6 +174,17 @@ class Server():
         for gradient in self.gradients:
             gradient.div_(client_values_sum)
         
+    def update_weights(self):
+        """
+        Directly applies the accumulated server gradients to the global model parameters.
+        No optimizer object is required.
+        """
+        # don't track gradients during this update step
+        with torch.no_grad():
+            for param, grad in zip(self.model.parameters(), self.gradients):
+                # param.data is updated in-place without creating a computational graph
+                param.data.add_(grad * self.lr)
+
     def update_client_values(self, client_gradients):
         """
             Update client value as a function of client and server gradient similarity and client diversity (if client diversity has been initialized).
@@ -157,7 +192,7 @@ class Server():
         phis = torch.tensor([F.cosine_similarity(flatten(gradient), flatten(self.gradients), 0, 1e-10) for gradient in client_gradients], device=self.device)
         for i in range(len(client_gradients)):
             self.client_values[i] = 0.95 * self.client_values[i] + 0.05 * phis[i]
-            if self.client_diversity:
+            if self.client_diversity is not None:
                 self.client_values[i] *= self.client_diversity[i]
         self.client_values = torch.div(self.client_values, self.client_values.sum())
 
@@ -197,9 +232,6 @@ class Server():
             reward_gradient_per_client.append(reward_gradient)
         
         return reward_gradient_per_client
-
-
-
 
     def rand_sample_clients(self, all_clients, frac):
         """

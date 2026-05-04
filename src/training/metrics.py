@@ -30,6 +30,13 @@ def collect_and_print_client_metrics(clients):
 
     return frame
 
+def collect_and_print_client_and_server_metrics(clients, server):
+    frame = collect_and_print_client_metrics(clients)
+
+    _, acc = server.eval_global_accuracy()
+    print(f"global acc: {acc}")
+
+    return frame
 
 
 def collect_metrics(clients: list[Client], server: Server):
@@ -42,4 +49,4 @@ def collect_metrics(clients: list[Client], server: Server):
         _, acc = client.evaluate()
         personalized_acc.append(acc)
     
-    
+    _, acc = server.eval_global_accuracy()

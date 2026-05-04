@@ -4,7 +4,7 @@ from torch.linalg import norm
 import torch
 from client import Client
 from server import Server
-from training.metrics import collect_and_print_client_metrics
+from training.metrics import collect_and_print_client_and_server_metrics
 from training.gradient_helpers import flatten, unflatten # TODO: torch built-in isntead?
 
 
@@ -97,6 +97,9 @@ def fairfed(clients: list[Client], server: Server, communication_rounds, local_e
         for i, client in enumerate(clients):
             for param_idx, param_name in enumerate(server.W.keys()):
                 client.W[param_name].data.add_(reward_gradients_per_client[i][param_idx])
+        
+        # update central model
+        server.update_weights()
 
-    metrics_df = collect_and_print_client_metrics(clients)
+    metrics_df = collect_and_print_client_and_server_metrics(clients, server)
     return metrics_df
