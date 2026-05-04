@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from pathlib import Path
 
-from models import GIN, serverGIN
+from models import GIN
 from net import GCN
 from client import Client
 from server import Server
