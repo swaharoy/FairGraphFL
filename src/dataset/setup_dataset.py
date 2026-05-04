@@ -334,4 +334,4 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
 
     global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
 
-    return subgraphs, global_stats, client_stats, num_classes, num_node_features 
+    return global_graph, subgraphs, global_stats, client_stats, num_classes, num_node_features 
