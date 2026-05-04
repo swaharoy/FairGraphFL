@@ -140,6 +140,9 @@ def collect_all_metrics(server: Server, clients: list[Client], num_classes, num_
     client_stats = compute_client_stats(clients, server.client_diversity)
     client_incentives = collect_client_incentives(clients) if incentives else None
 
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', 1000)
+
     print("--- SERVER STATS --- ")
     print(server_stats)
     print("\n")
