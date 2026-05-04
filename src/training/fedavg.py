@@ -91,6 +91,7 @@ def fedavg(clients: list[Client], server: Server, communication_rounds, local_ep
         print(f"Client {client.id} train size: {client.train_size}")
         client.download_weights_from_server(server)
 
+        print("local adaptation training")
         client.local_train(10)
 
         
