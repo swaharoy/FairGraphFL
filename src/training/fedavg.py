@@ -3,7 +3,7 @@ from server import Server
 from training.metrics import collect_and_print_client_and_server_metrics
 
 
-def fedavg_proto(clients: list[Client], server: Server, communication_rounds, local_epoch, with_prototypes = False, frac=1.0,):
+def fedavg(clients: list[Client], server: Server, communication_rounds, local_epoch, with_prototypes = False, frac=1.0,):
     """
     Excutes FedAvg with prototype alignment.
 
@@ -90,6 +90,8 @@ def fedavg(clients: list[Client], server: Server, communication_rounds, local_ep
     for client in clients:
         print(f"Client {client.id} train size: {client.train_size}")
         client.download_weights_from_server(server)
+
+        client.local_train(10)
 
         
 
