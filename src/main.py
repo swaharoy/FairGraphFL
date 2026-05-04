@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from pathlib import Path
 
-from models import GIN
+from models import GIN, serverGIN
 from net import GCN
 from client import Client
 from server import Server
@@ -152,9 +152,9 @@ def init_server(global_graph, num_classes, num_node_features, args):
         Server: The instantiated central server object.
     """
 
-    model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
+    # model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
     # model =  GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
-  
+    model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
     return Server(model=model, graph=global_graph, device=args.device)
 
 if __name__ == '__main__':

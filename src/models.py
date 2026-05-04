@@ -2,6 +2,30 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.nn import GINConv
 
+
+class serverGIN(torch.nn.Module):
+    """
+    A simplified Graph Isomorphism Network (GIN) for the central server.
+    
+    This acts as a structural template to hold the aggregated global weights 
+    for the convolutional layers.
+
+    Args:
+        nlayer (int): Number of GINConv layers.
+        nhid (int): Dimensionality of hidden units.
+    """
+    def __init__(self, nlayer, nhid):
+        super(serverGIN, self).__init__()
+        self.graph_convs = torch.nn.ModuleList()
+        self.nn1 = torch.nn.Sequential(torch.nn.Linear(nhid, nhid), torch.nn.ReLU(),
+                                       torch.nn.Linear(nhid, nhid))
+        self.graph_convs.append(GINConv(self.nn1))
+        for l in range(nlayer - 1):
+            self.nnk = torch.nn.Sequential(torch.nn.Linear(nhid, nhid), torch.nn.ReLU(),
+                                           torch.nn.Linear(nhid, nhid))
+            self.graph_convs.append(GINConv(self.nnk))
+
+
 class GIN(torch.nn.Module):
     """
     Standard Graph Isomorphism Network (GIN) for local client training.
