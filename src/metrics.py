@@ -141,11 +141,13 @@ def collect_all_metrics(server: Server, clients: list[Client], num_classes, num_
     client_stats = compute_client_stats(clients, server.client_diversity)
     client_incentives = collect_client_incentives(clients) if incentives else None
 
-    print("--- SERVER STATS --- \n")
+    print("--- SERVER STATS --- ")
     print(server_stats)
-    print("--- CLIENT STATS --- \n")
+    print("\n")
+    print("--- CLIENT STATS --- ")
     print(client_stats)
-    print("--- INCENTIVES --- \n")
+    print("\n")
+    print("--- INCENTIVES --- ")
     print(client_incentives)
 
     return server_stats, client_stats, client_incentives
