@@ -31,7 +31,7 @@ def compute_client_stats(clients: list[Client], client_diversity):
 
         _, acc = client.evaluate()
 
-        diversity = client_diversity[i] if client_diversity and i < len(client_diversity) else None
+        diversity = client_diversity[i] if client_diversity is not None and i < len(client_diversity) else None
         num_of_motifs = getattr(client, "num_of_motifs", None)
 
         client_rows.append({
@@ -82,8 +82,6 @@ def collect_client_incentives(clients: list[Client]):
     # create the MultiIndex DataFrame
     df = pd.DataFrame(combined_data, columns=columns)
     df.index.name = 'communication_round'
-
-    print(df)
 
     return df
 
@@ -149,6 +147,6 @@ def collect_all_metrics(server: Server, clients: list[Client], num_classes, num_
     print(client_stats)
     print("\n")
     print("--- INCENTIVES --- ")
-    print(client_incentives)
+    print(client_incentives.iloc[::40])
 
     return server_stats, client_stats, client_incentives
