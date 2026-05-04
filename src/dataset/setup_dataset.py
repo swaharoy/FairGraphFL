@@ -87,6 +87,56 @@ def create_local_split(data, seed, train_ratio, val_ratio, exclude_mask):
     
     return data
 
+def split_train_val_test(data, seed, train_ratio=0.2, val_ratio=0.35):
+    """
+    Creates randomized train, validation, and test masks for a global graph.
+
+    Args:
+        data (torch_geometric.data.Data): The input graph data.
+        seed (int): Random seed for reproducibility.
+        train_ratio (float): Proportion of nodes to use for training.
+        val_ratio (float): Proportion of nodes to use for validation.
+
+    Returns:
+        torch_geometric.data.Data: The updated data object with masks attached.
+    """
+
+    num_nodes = data.num_nodes
+
+    # reproducibility
+    g = torch.Generator()
+    g.manual_seed(seed)
+
+    # random permutation of all nodes
+    perm = torch.randperm(num_nodes, generator=g)
+
+    # compute sizes
+    n_train = int(train_ratio * num_nodes)
+    n_val = int(val_ratio * num_nodes)
+
+    # split indices
+    train_idx = perm[:n_train]
+    val_idx = perm[n_train:n_train + n_val]
+    test_idx = perm[n_train + n_val:]
+
+    # initialize masks
+    train_mask = torch.zeros(num_nodes, dtype=torch.bool)
+    val_mask = torch.zeros(num_nodes, dtype=torch.bool)
+    test_mask = torch.zeros(num_nodes, dtype=torch.bool)
+
+    # assign
+    train_mask[train_idx] = True
+    val_mask[val_idx] = True
+    test_mask[test_idx] = True
+
+    # attach to data
+    data.train_mask = train_mask
+    data.val_mask = val_mask
+    data.test_mask = test_mask
+
+    return data
+
+
 def compute_graph_stats(global_graph, subgraphs, undirected=True):
     """
     Computes structural statistics (nodes, edges) for the global and partitioned graphs.
@@ -190,7 +240,7 @@ def get_data(dataset):
    
     return data, ds.num_classes, ds.num_node_features
 
-def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed):
+def setup_dataset_bugs(dataset_name, num_clients, partition_method, seed, split_seed):
     """
     Full pipeline to load, split, and partition datasets for Subgraph Federated Learning.
 
@@ -239,3 +289,49 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
     return global_graph, subgraphs, global_stats, client_stats, num_classes, num_node_features 
 
 
+def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed):
+    """
+    Full pipeline to load, split, and partition datasets for Subgraph Federated Learning.
+
+    Args:
+        dataset_name (str): Name of the dataset.
+        num_clients (int): Number of clients to partition the graph for.
+        partition_method (str): Algorithm for clustering/partitioning.
+        seed (int): Seed for the partitioner.
+        split_seed (int): Seed for generating train/val/test masks.
+
+    Returns:
+        tuple: (subgraphs list, global stats DF, client stats DF, num_classes, num_node_features)
+    """
+    global_graph, num_classes, num_node_features  = get_data(dataset_name)
+
+    global_graph = split_train_val_test(global_graph, split_seed)
+
+    if num_clients == 1:
+        global_graph.num_inter_edges = 0
+        subgraphs = [global_graph]
+    else:
+        subgraphs = partition_graph(global_graph, num_subgraphs=num_clients, method=partition_method, seed = seed)
+
+    # determine split ratios based on dataset
+    if dataset_name == 'ogbn-arxiv':
+        train_ratio = 0.05
+        val_ratio = 47.5
+    else:
+        train_ratio = 0.20
+        val_ratio = 0.40
+
+    # apply the train/val/test splits PER SUBGRAPH
+    for i in range(len(subgraphs)):
+        # We add 'i' to the split_seed so that if two subgraphs happen to 
+        # have the exact same number of nodes, they get differently randomized masks
+        subgraphs[i] = split_train_val_test(
+            subgraphs[i], 
+            seed=(split_seed + i), 
+            train_ratio=train_ratio, 
+            val_ratio=val_ratio
+        )
+
+    global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
+
+    return subgraphs, global_stats, client_stats, num_classes, num_node_features 
