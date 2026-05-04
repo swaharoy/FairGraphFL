@@ -98,21 +98,20 @@ def save_experiment_dataframes(args, server_stats, client_stats, client_incentiv
     """
 
     prefix = get_experiment_prefix(args)
-    save_dir = os.path.join(args.outbase, prefix)
-    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(args.outbase, exist_ok=True)
     
     # Save the dataframes
-    server_stats.to_csv(os.path.join(save_dir, 'server.csv'), index=False)
-    client_stats.to_csv(os.path.join(save_dir, 'client.csv'), index=False)
+    server_stats.to_csv(os.path.join(args.outbase, f'{prefix}_server.csv'), index=False)
+    client_stats.to_csv(os.path.join(args.outbase, f'{prefix}_client.csv'), index=False)
     if client_incentives:
-        client_incentives.to_csv(os.path.join(save_dir, 'incentives.csv'), index=False)
+        client_incentives.to_csv(os.path.join(args.outbase, f'{prefix}_incentives.csv'), index=False)
     
     # Save a hyperparameters text file for easy scanning later
-    with open(os.path.join(save_dir, 'params.txt'), 'w') as f:
+    with open(os.path.join(args.outbase, f'{prefix}_params.txt'), 'w') as f:
         for arg in vars(args):
             f.write(f"{arg}: {getattr(args, arg)}\n")
             
-    print(f"Successfully saved results to: {save_dir}")
+    print(f"Successfully saved results to: {args.outbase}")
 
 
 def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client]:
@@ -219,7 +218,7 @@ if __name__ == '__main__':
         raise ValueError(f"Unknown training framework: {args.method}")
 
     # SAVE RESULTS
-    
+
     server_stats, client_stats, client_incentives = collect_all_metrics(server, clients, num_classes, num_node_features, incentives)
     save_experiment_dataframes(args=args, server_stats=server_stats, client_stats=client_stats, client_incentives=client_incentives)
 
