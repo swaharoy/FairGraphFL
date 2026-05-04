@@ -120,7 +120,6 @@ def compute_server_stats(server: Server, num_classes, num_node_features):
 
     return df
 
-
 def collect_all_metrics(server: Server, clients: list[Client], num_classes, num_node_features, incentives=False):
     """
     Collects all metrics from both the server and clients.
@@ -148,8 +147,9 @@ def collect_all_metrics(server: Server, clients: list[Client], num_classes, num_
     print("\n")
     print("--- CLIENT STATS --- ")
     print(client_stats)
-    print("\n")
-    print("--- INCENTIVES --- ")
-    print(client_incentives.iloc[::40])
+    if incentives:
+        print("\n")
+        print("--- INCENTIVES --- ")
+        print(client_incentives.iloc[::40])
 
     return server_stats, client_stats, client_incentives

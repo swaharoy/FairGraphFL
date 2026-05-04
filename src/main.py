@@ -81,6 +81,40 @@ def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
 
+def get_experiment_prefix(args):
+    """Generates a unique experiment prefix based on parameters."""
+
+    if args.method == "central":
+        name = f"{args.dataset}_{args.method}_s{args.seed}"
+    else:
+        name =  f"{args.dataset}_n{args.num_clients}_{args.partition}_{args.method}_s{args.seed}"
+
+        
+    return name
+
+def save_experiment_dataframes(args, server_stats, client_stats, client_incentives):
+    """
+    Saves the 3 metrics dataframes to Google Drive with an informative name.
+    """
+
+    prefix = get_experiment_prefix(args)
+    save_dir = os.path.join(args.outbase, prefix)
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Save the dataframes
+    server_stats.to_csv(os.path.join(save_dir, 'server.csv'), index=False)
+    client_stats.to_csv(os.path.join(save_dir, 'client.csv'), index=False)
+    if client_incentives:
+        client_incentives.to_csv(os.path.join(save_dir, 'incentives.csv'), index=False)
+    
+    # Save a hyperparameters text file for easy scanning later
+    with open(os.path.join(save_dir, 'params.txt'), 'w') as f:
+        for arg in vars(args):
+            f.write(f"{arg}: {getattr(args, arg)}\n")
+            
+    print(f"Successfully saved results to: {save_dir}")
+
+
 def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client]:
     """
     Initializes the local models and configurations for all federated clients.
@@ -145,7 +179,9 @@ if __name__ == '__main__':
 
     if args.method == "central":
         args.num_clients = 1
-        
+    
+    # SETUP DATASET + SERVER/CLIENTS
+
     global_graph, subgraphs, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
     args.num_classes = num_classes
     
@@ -163,7 +199,9 @@ if __name__ == '__main__':
             if args.skip_client_idx != len(clients) - 1:
                 clients[args.skip_client_idx + 1:]
             print(f"client remove, new len: {len(clients)} ")
-            
+
+    # SELECT TRAINING METHOD
+             
     incentives = False
     if args.method == "selftrain" or args.method == "central":
         metrics = selftrain(clients=clients, server=server, local_epoch=args.local_epoch)
@@ -180,8 +218,11 @@ if __name__ == '__main__':
     else:
         raise ValueError(f"Unknown training framework: {args.method}")
 
+    # SAVE RESULTS
+    
     server_stats, client_stats, client_incentives = collect_all_metrics(server, clients, num_classes, num_node_features, incentives)
-        
+    save_experiment_dataframes(args=args, server_stats=server_stats, client_stats=client_stats, client_incentives=client_incentives)
+
 
 
     
