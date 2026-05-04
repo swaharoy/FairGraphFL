@@ -31,7 +31,7 @@ def compute_client_stats(clients: list[Client], client_diversity):
 
         _, acc = client.evaluate()
 
-        diversity = client_diversity[i] if client_diversity is not None and i < len(client_diversity) else None
+        diversity = client_diversity[i].item() if client_diversity is not None and i < len(client_diversity) else None
         num_of_motifs = getattr(client, "num_of_motifs", None)
 
         client_rows.append({

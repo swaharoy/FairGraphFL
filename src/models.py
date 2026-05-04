@@ -75,7 +75,6 @@ class GIN(torch.nn.Module):
                 - x2 (torch.Tensor): The raw node representations extracted directly from 
                   the core GNN message-passing layers. 
                   Shape: [total_num_nodes, nhid].
-            # TODO: x2 can be removed layer, keeping for comptabilty rn
         """
         x, edge_index = data.x, data.edge_index
         x = self.pre(x)

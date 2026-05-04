@@ -173,7 +173,7 @@ def create_subgraphs(data, subgraph_node_ids):
 
 
 ### PARTITION METHODS
-def random_assign(num_nodes, num_subgraphs): #TODO: determine if we want balanced size?
+def random_assign(num_nodes, num_subgraphs): 
     subgraph_id = np.random.choice(num_subgraphs, num_nodes, replace=True)
     subgraph_node_ids = {
         value: torch.tensor(
@@ -207,7 +207,7 @@ def kmeans_cut(X, num_subgraphs, delta, seed):
     return subgraph_node_ids
 
 def metis_cut(edge_index, num_nodes, num_subgraphs):
-    import metis # TODO: ensure corrects packages installed
+    import metis 
 
     edges = edge_index.T.tolist()
     nx_graph = nx.Graph()

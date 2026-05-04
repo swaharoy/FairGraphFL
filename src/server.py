@@ -3,7 +3,7 @@ import math
 import random
 import torch
 import torch.nn.functional as F
-from training.gradient_helpers import flatten, unflatten # TODO: torch built-in isntead?
+from training.gradient_helpers import flatten, unflatten
 
 
 
@@ -43,7 +43,7 @@ class Server():
 
         self.gradients = []
     
-    def eval_global_accuracy(self): # TODO: double check
+    def eval_global_accuracy(self): 
         """
         Evalutes cenrtal model on global graph on the global test set.
         Returns loss, test_acc.
@@ -160,7 +160,7 @@ class Server():
         self.num_client = {} 
         self.global_prototype = {} 
 
-    def calculate_gradients(self, client_gradients): # TODO: actually update the weight
+    def calculate_gradients(self, client_gradients):
         """"
          Construct global server gladient by aggregating oer each client's gradient (weighted by value)
         """

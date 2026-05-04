@@ -37,7 +37,7 @@ def fairfed(clients: list[Client], server: Server, communication_rounds, local_e
         if (c_round) % 50 == 0:
             print(f"  > round {c_round}")
         
-        if c_round == 1: # TODO: optional to start at same point
+        if c_round == 1: # optional to start at same point
             for client in clients:
                 client.download_weights_from_server(server)
 

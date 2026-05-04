@@ -241,10 +241,7 @@ class Client():
             loss = loss1 + (self.args.lamb * loss2)
             
             loss.backward()
-            self.optimizer.step()
-
-            # TODO: can eval and track metrics like local_train
-            
+            self.optimizer.step()            
 
 
     def download_weights_from_server(self, server):
@@ -301,7 +298,6 @@ class Client():
             losses_test.append(loss_tt)
             accs_test.append(acc_tt)
 
-        # TODO: determine if want to store history (not rewrite for each c_round)
         self.train_stats =  {'trainingLosses': losses_train, 'trainingAccs': accs_train, 'valLosses': losses_val, 'valAccs': accs_val,
             'testLosses': losses_test, 'testAccs': accs_test}
 
