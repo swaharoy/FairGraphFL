@@ -43,6 +43,8 @@ def parse_args():
                         help='Dropout rate (1 - keep probability).')
     parser.add_argument('--seed', help='seed for randomness;',
                         type=int, default=123)
+    parser.add_argument('--split_seed', help='seed for random data split;',
+                    type=int, default=123)
 
     parser.add_argument('--outbase', type=str, default='./outputs',
                         help='The base path for outputting.')
@@ -171,7 +173,6 @@ def init_server(global_graph, num_classes, num_node_features, args):
 if __name__ == '__main__':
     args = parse_args()
    
-    split_seed = 123
     set_seed(args.seed)
 
     args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -181,7 +182,7 @@ if __name__ == '__main__':
     
     # SETUP DATASET + SERVER/CLIENTS
 
-    global_graph, subgraphs, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
+    global_graph, subgraphs, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=args.split_seed)
     args.num_classes = num_classes
     
     print(f"Subgraph construction from dataset {args.dataset} complete.")

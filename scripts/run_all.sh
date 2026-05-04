@@ -1,36 +1,47 @@
 #!/bin/bash
 
-datasets=("Cora" "CiteSeer" "PubMed" "Computers" "Photo" "ogbn-arxiv")
+datasets=("Cora" "Photo" "Computers")
 partitions=("louvain" "kmeans" "metis" "random")
-methods=("central" "selftrain" "fedavg" "fedavg-proto" "fairfed" "fairfed-proto")
-num_of_clients=(5 10)
+num_clients=(5 10)
+methods=("selftrain" "fedavg" "fedavg-proto")
 seeds=(42 43 44)
 
-mkdir -p results
-
+# ==========================================
+# Loop 1: Central Method
+# ==========================================
 for dataset in "${datasets[@]}"; do
-    for partition in "${partitions[@]}"; do
-        for num_client in "${num_of_clients[@]}"; do
+    for seed in "${seeds[@]}"; do
+        echo "Running: $dataset, central, seed $seed"
+        
+        python src/main.py \
+            --dataset "$dataset" \
+            --method "central" \
+            --seed "$seed" \
+            --split_seed $((seed + 100)) \
+            --local_epoch 200 \
+            --model "GIN"
+    done
+done
+
+# ==========================================
+# Loop 2: Federated and Self-Train Methods
+# ==========================================
+for dataset in "${datasets[@]}"; do
+    for num_client in "${num_clients[@]}"; do
+        for partition in "${partitions[@]}"; do
             for method in "${methods[@]}"; do
                 for seed in "${seeds[@]}"; do
+                    echo "Running: $dataset, $partition, $num_client clients, $method, seed $seed"
                     
-                    output_file="results/${dataset}_${partition}_${method}_seed${seed}.csv"
-                    
-                    # Check if file exists so you don't overwrite or rerun completed runs
-                    if [ ! -f "$output_file" ]; then
-                        echo "Running: $dataset, $partition, $method, seed $seed"
-                        
-                        python fairfedmotif.py \
-                            --dataset "$dataset" \
-                            --partition "$partition" \
-                            --method "$method" \
-                            --seed "$seed" \
-                            --split_seed $((seed + 100)) \
-                            --output "$output_file"
-                    else
-                        echo "Skipping: $dataset, $partition, $method, seed $seed (Already exists)"
-                    fi
-
+                    python src/main.py \
+                        --dataset "$dataset" \
+                        --partition "$partition" \
+                        --num_clients "$num_client" \
+                        --method "$method" \
+                        --seed "$seed" \
+                        --split_seed $((seed + 100)) \
+                        --local_epoch 200 \
+                        -- model "GIN"
                 done
             done
         done
