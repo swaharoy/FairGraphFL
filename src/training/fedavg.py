@@ -79,7 +79,7 @@ def fedavg(clients: list[Client], server: Server, communication_rounds, local_ep
             selected_clients = server.rand_sample_clients(clients, frac)
 
         for client in selected_clients:
-            client.download_from_server(server)
+            client.download_weights_from_server(server)
         
         for client in selected_clients:
             client.local_train(local_epoch)
@@ -89,7 +89,7 @@ def fedavg(clients: list[Client], server: Server, communication_rounds, local_ep
     # sync all clients w server
     for client in clients:
         print(f"Client {client.id} train size: {client.train_size}")
-        client.download_from_server(server)
+        client.download_weights_from_server(server)
 
         
 
