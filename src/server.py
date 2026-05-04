@@ -214,7 +214,7 @@ class Server():
                 past_contribtuion = torch.max(torch.tensor([ self.client_values[i] - prev_rounds_avg, 0]))
                 client.payoff.append(self.client_values[i] + past_contribtuion)
 
-            total_payoff_c_round +=  client.payoff[-1]
+            total_payoff_c_round += client.payoff[-1]
         
         for client in clients:
             client.payoff[-1] /= total_payoff_c_round
