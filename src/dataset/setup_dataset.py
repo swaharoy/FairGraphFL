@@ -273,93 +273,22 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
         val_ratio = 0.40
 
     # apply the train/val/test splits PER SUBGRAPH
-    for i in range(len(subgraphs)):
-        # We add 'i' to the split_seed so that if two subgraphs happen to 
-        # have the exact same number of nodes, they get differently randomized masks
-        subgraphs[i] = create_local_split(
-            subgraphs[i], 
-            seed=(split_seed + i), 
-            train_ratio=train_ratio, 
-            val_ratio=val_ratio,
-            exclude_mask=global_graph.global_test_mask
-        )
+    if len(subgraphs) == 1:
+        subgraphs[i] = split_train_val_test(data=subgraphs[0], seed = split_seed, train_ratio=train_ratio, val_ratio=val_ratio)
+    else:
+        for i in range(len(subgraphs)):
+            # We add 'i' to the split_seed so that if two subgraphs happen to 
+            # have the exact same number of nodes, they get differently randomized masks
+            subgraphs[i] = create_local_split(
+                subgraphs[i], 
+                seed=(split_seed + i), 
+                train_ratio=train_ratio, 
+                val_ratio=val_ratio,
+                exclude_mask=global_graph.global_test_mask
+            )
 
     global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
 
     return global_graph, subgraphs, global_stats, client_stats, num_classes, num_node_features 
 
 
-# def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed):
-#     """
-#     Full pipeline to load, split, and partition datasets for Subgraph Federated Learning.
-
-#     Args:
-#         dataset_name (str): Name of the dataset.
-#         num_clients (int): Number of clients to partition the graph for.
-#         partition_method (str): Algorithm for clustering/partitioning.
-#         seed (int): Seed for the partitioner.
-#         split_seed (int): Seed for generating train/val/test masks.
-
-#     Returns:
-#         tuple: (subgraphs list, global stats DF, client stats DF, num_classes, num_node_features)
-#     """
-#     global_graph, num_classes, num_node_features  = get_data(dataset_name)
-
-#     global_graph = split_train_val_test(global_graph, split_seed)
-
-#     if num_clients == 1:
-#         global_graph.num_inter_edges = 0
-#         subgraphs = [global_graph]
-#     else:
-#         subgraphs = partition_graph(global_graph, num_subgraphs=num_clients, method=partition_method, seed = seed)
-
-#     # determine split ratios based on dataset
-#     if dataset_name == 'ogbn-arxiv':
-#         train_ratio = 0.05
-#         val_ratio = 47.5
-#     else:
-#         train_ratio = 0.20
-#         val_ratio = 0.40
-
-#     # apply the train/val/test splits PER SUBGRAPH
-#     for i in range(len(subgraphs)):
-#         # We add 'i' to the split_seed so that if two subgraphs happen to 
-#         # have the exact same number of nodes, they get differently randomized masks
-#         subgraphs[i] = split_train_val_test(
-#             subgraphs[i], 
-#             seed=(split_seed + i), 
-#             train_ratio=train_ratio, 
-#             val_ratio=val_ratio
-#         )
-
-#     global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
-
-#     return global_graph, subgraphs, global_stats, client_stats, num_classes, num_node_features 
-
-# def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed):
-#     """
-#     Full pipeline to load, split, and partition datasets for Subgraph Federated Learning.
-
-#     Args:
-#         dataset_name (str): Name of the dataset.
-#         num_clients (int): Number of clients to partition the graph for.
-#         partition_method (str): Algorithm for clustering/partitioning.
-#         seed (int): Seed for the partitioner.
-#         split_seed (int): Seed for generating train/val/test masks.
-
-#     Returns:
-#         tuple: (subgraphs list, global stats DF, client stats DF, num_classes, num_node_features)
-#     """
-#     global_graph, num_classes, num_node_features  = get_data(dataset_name)
-
-#     global_graph = split_train_val_test(global_graph, split_seed)
-
-#     if num_clients == 1:
-#         global_graph.num_inter_edges = 0
-#         subgraphs = [global_graph]
-#     else:
-#         subgraphs = partition_graph(global_graph, num_subgraphs=num_clients, method=partition_method, seed = seed)
-
-#     global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
-
-#     return global_graph, subgraphs, global_stats, client_stats, num_classes, num_node_features 

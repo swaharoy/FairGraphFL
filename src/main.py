@@ -131,7 +131,7 @@ def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client
     
     sorted_subgraphs = sorted(subgraphs, key=lambda sg: sg.num_inter_edges)
 
-    for idx, subgraph in enumerate(subgraphs):
+    for idx, subgraph in enumerate(sorted_subgraphs):
         
         if args.model == "GCN":
             print("client model: GCN")
