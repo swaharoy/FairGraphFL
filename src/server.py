@@ -72,7 +72,7 @@ class Server():
         for i in range(num_of_clients):
             self.client_values[i] = 1 / num_of_clients
 
-    def init_client_diversity(self, num_motifs_per_client):
+    def init_client_diversity(self, num_motifs_per_client, num_global_unique_motifs):
         """
          modified from paper, dividing by max num of prototypes rather than total unique
          intuitively, the client with the most motifs will have their value diminished the least
@@ -82,7 +82,7 @@ class Server():
         for i, num_motifs in enumerate(num_motifs_per_client):
             self.client_diversity[i] = num_motifs
         
-        self.client_diversity =  self.client_diversity / torch.max(self.client_diversity)
+        self.client_diversity =  self.client_diversity / num_global_unique_motifs
         
     def aggregate_prototype(self, clients):
         """
@@ -191,9 +191,9 @@ class Server():
         """
         phis = torch.tensor([F.cosine_similarity(flatten(gradient), flatten(self.gradients), 0, 1e-10) for gradient in client_gradients], device=self.device)
         for i in range(len(client_gradients)):
-            self.client_values[i] = 0.95 * self.client_values[i] + 0.05 * phis[i]
+            self.client_values[i] = self.client_values[i] + 0.05 * phis[i] 
             if self.client_diversity is not None:
-                self.client_values[i] *= self.client_diversity[i]
+                self.client_values[i] += 0.05 * self.client_diversity[i]
         self.client_values = torch.div(self.client_values, self.client_values.sum())
 
     def allocate_payoff(self, clients):
@@ -212,6 +212,7 @@ class Server():
                 client.payoff.append(self.client_values[i])
             else:
                 past_contribtuion = torch.max(torch.tensor([ self.client_values[i] - prev_rounds_avg, 0]))
+                print(f"past contribution bonus {past_contribtuion}")
                 client.payoff.append(self.client_values[i] + past_contribtuion)
 
             total_payoff_c_round += client.payoff[-1]

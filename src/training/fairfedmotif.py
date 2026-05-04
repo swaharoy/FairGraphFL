@@ -20,12 +20,12 @@ def fairfed(clients: list[Client], server: Server, communication_rounds, local_e
         local_epoch (int): The number of local training epochs each client performs per round.
     """
     
+    num_motifs_per_client = []
     if with_prototypes:
-        num_motifs_per_client = []
         for client in clients:
             client.construct_motifs()
             num_motifs_per_client.append(len(client.motif_count.keys()))
-        server.init_client_diversity(num_motifs_per_client)
+        
 
     server.init_client_values(len(clients))
     
@@ -47,8 +47,12 @@ def fairfed(clients: list[Client], server: Server, communication_rounds, local_e
             
             if c_round == 1: 
                 server.aggregate_prototype(clients)
+                num_global_unique_motifs = len(server.global_prototype.keys())
+                print(f"Server contains {num_global_unique_motifs} unique motifs.")
+                server.init_client_diversity(num_motifs_per_client, num_global_unique_motifs)
             else:
                 server.aggregate_prototype_by_client_value(clients)
+                
 
         client_gradients = []
         for client in clients:
