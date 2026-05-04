@@ -185,7 +185,7 @@ if __name__ == '__main__':
  
 
     clients = init_clients(subgraphs=subgraphs, num_classes=num_classes, num_node_features=num_node_features, args=args)
-    server = init_server(graph=global_graph, num_classes=num_classes, num_node_features=num_node_features, args=args)
+    server = init_server(global_graph=global_graph, num_classes=num_classes, num_node_features=num_node_features, args=args)
 
     if args.skip_client:
         if args.skip_client_idx >= args.num_clients:
