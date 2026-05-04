@@ -62,7 +62,7 @@ def parse_args():
                         type=str, default='random')
     parser.add_argument('--skip_client', help='skip one of the clients', type = bool, default= False )
     parser.add_argument('--skip_client_idx', help='skip client at idx, must be in [0, num_clients)', type =int, default= 1 )
-    parser.add_argument('--server', help='selects serverGIN model type', type =bool, default= False )
+    parser.add_argument('--model', help='model type', type =str, default= "GIN" )
 
    
 
@@ -132,9 +132,11 @@ def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client
     sorted_subgraphs = sorted(subgraphs, key=lambda sg: sg.num_inter_edges)
 
     for idx, subgraph in enumerate(subgraphs):
-
-        model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
-        # model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+        
+        if args.model == "GCN":
+            model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+        else:
+            model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
 
 
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
@@ -152,12 +154,13 @@ def init_server(global_graph, num_classes, num_node_features, args):
     Returns:
         Server: The instantiated central server object.
     """
-    if args.server:    
+    if args.model == "serverGIN":    
         model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
+    elif args.model == "GCN":
+        model =  GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
     else:
         model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
 
-    # model =  GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
     return Server(model=model, graph=global_graph, device=args.device)
 
 if __name__ == '__main__':
