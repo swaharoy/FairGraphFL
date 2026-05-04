@@ -1,5 +1,6 @@
 import pandas as pd
 from client import Client
+from server import Server
 
 def collect_client_metrics(clients: list[Client]):
     frame = pd.DataFrame()
@@ -28,3 +29,17 @@ def collect_and_print_client_metrics(clients):
     display_metrics_table(frame)
 
     return frame
+
+
+
+def collect_metrics(clients: list[Client], server: Server):
+    diversity = server.client_diversity
+    edge_loss = []
+    personalized_acc = []
+    
+    for client in clients:
+        edge_loss.append(client.subgraph.num_inter_edges)
+        _, acc = client.evaluate()
+        personalized_acc.append(acc)
+    
+    

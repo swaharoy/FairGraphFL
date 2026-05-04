@@ -1,8 +1,8 @@
 #!/bin/bash
 
 DATASETS=("Cora" "CiteSeer" "PubMed" "Computers" "Photo" "ogbn-arxiv")
+PARTITIONS=("louvain" "kmeans" "metis" "random")
 
-PARTITIONS=("random" "metis" "louvain" "kmeans")
 
 NUM_CLIENTS=10
 

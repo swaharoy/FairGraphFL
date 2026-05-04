@@ -52,37 +52,25 @@ def parse_args():
                         help='The input path of data.')
     parser.add_argument('--outbase', type=str, default='./outputs',
                         help='The base path for outputting.')
-    parser.add_argument('--repeat', help='index of repeating;',
-                        type=int, default=None)
-    parser.add_argument('--data_group', help='specify the group of datasets',
-                        type=str, default='IMDB-BINARY')
+   
     parser.add_argument('--dataset', help='specify the  datasets',
                         type=str, default='Cora')
-
-    parser.add_argument('--convert_x', help='whether to convert original node features to one-hot degree features',
-                        type=bool, default=False)
     parser.add_argument('--num_clients', help='number of clients',
                         type=int, default=10)
+    parser.add_argument('--method', help='FL training framework',
+                    type=str, default='selftrain')
     parser.add_argument('--partition', help='subgraph partitioning method',
                         type=str, default='random')
-    parser.add_argument('--prototypes', help = 'use prototypes for fedavg or fairfed', type=bool, default=False)
-    parser.add_argument('--overlap', help='whether clients have overlapped data',
-                        type=bool, default=False)
-    parser.add_argument('--standardize', help='whether to standardize the distance matrix',
-                        type=bool, default=False)
-    parser.add_argument('--seq_length', help='the length of the gradient norm sequence',
-                        type=int, default=5)
-    parser.add_argument('--epsilon1', help='the threshold epsilon1 for GCFL',
-                        type=float, default=0.03)
-    parser.add_argument('--epsilon2', help='the threshold epsilon2 for GCFL',
-                        type=float, default=0.06)
+    parser.add_argument('--skip_client', help='skip one of the clients', type = bool, default= False )
+    parser.add_argument('--skip_client_idx', help='skip client at idx, must be in [0, num_clients)', type =int, default= 1 )
+
+   
+
     parser.add_argument('--lamb', type=float, default=0.1)
     parser.add_argument('--beta', type=float, default=0.85)
     parser.add_argument('--aug', type=bool, default=False)
-    parser.add_argument('--disable_dp', type=bool, default=False)
 
-    parser.add_argument('--training', help='FL training framework',
-                    type=str, default='selftrain')
+
 
     try:
         args = parser.parse_args()
@@ -186,26 +174,41 @@ if __name__ == '__main__':
     
     print(f"Subgraph construction from dataset {args.dataset} complete.")
 
-    outf_global = create_stats_outpath(args, is_global = True)
-    outf_subgraph = create_stats_outpath(args, is_global = False)
+    # outf_global = create_stats_outpath(args, is_global = True)
+    # outf_subgraph = create_stats_outpath(args, is_global = False)
 
-    print(global_stats)
-    print(subgraph_stats)
+    # print(global_stats)
+    # print(subgraph_stats)
     
-    global_stats.to_csv(outf_global)
-    subgraph_stats.to_csv(outf_subgraph)
-    print(f"Wrote to {outf_global} and {outf_subgraph}")
+    # global_stats.to_csv(outf_global)
+    # subgraph_stats.to_csv(outf_subgraph)
+    # print(f"Wrote to {outf_global} and {outf_subgraph}")
  
 
     clients = init_clients(subgraphs, num_classes, num_node_features, args)
     server = init_server(num_classes, num_node_features, args)
 
+    if args.skip_client:
+        if args.skip_client_idx >= args.num_clients:
+             raise ValueError(f"skip client idx greater than num_cleints: {args.args.skip_client_idx} >= {args.num_clients:}")
+        else:
+            print(f"num of clients: {len(clients)}")
+            clients = clients[0: args.skip_client_idx] 
+            if args.skip_client_idx != len(clients) - 1:
+                clients[args.skip_client_idx + 1:]
+            print(f"client remove, new len: {len(clients)} ")
+            
+
     if args.training == "selftrain" or args.training == "central":
         metrics = selftrain(clients=clients, server=server, local_epoch=args.local_epoch)
     elif args.training == "fedavg":
-        metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=args.prototypes)
+        metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=False)
+    elif args.training == "fedavg-proto":
+        metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=True)
     elif args.training == "fairfed":
-        metrics = fairfed(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=args.prototypes)
+        metrics = fairfed(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=False)
+    elif args.training == "fairfed-proto":
+        metrics = fairfed(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=True)
     else:
         raise ValueError(f"Unknown training framework: {args.training}")
 
