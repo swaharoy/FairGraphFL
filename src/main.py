@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
     args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    if args.training == "central":
+    if args.method == "central":
         args.num_clients = 1
         
     global_graph, subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
@@ -198,18 +198,18 @@ if __name__ == '__main__':
             print(f"client remove, new len: {len(clients)} ")
             
 
-    if args.training == "selftrain" or args.training == "central":
+    if args.method == "selftrain" or args.method == "central":
         metrics = selftrain(clients=clients, server=server, local_epoch=args.local_epoch)
-    elif args.training == "fedavg":
+    elif args.method == "fedavg":
         metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=False)
-    elif args.training == "fedavg-proto":
+    elif args.method == "fedavg-proto":
         metrics = fedavg(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=True)
-    elif args.training == "fairfed":
+    elif args.method == "fairfed":
         metrics = fairfed(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=False)
-    elif args.training == "fairfed-proto":
+    elif args.method == "fairfed-proto":
         metrics = fairfed(clients=clients, server=server, communication_rounds=args.num_rounds, local_epoch=args.local_epoch, with_prototypes=True)
     else:
-        raise ValueError(f"Unknown training framework: {args.training}")
+        raise ValueError(f"Unknown training framework: {args.method}")
 
     # TODO: save metrics?
         
