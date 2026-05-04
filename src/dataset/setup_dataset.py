@@ -223,7 +223,7 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
             seed=(split_seed + i), 
             train_ratio=train_ratio, 
             val_ratio=val_ratio,
-            exclude_mask=subgraphs[i].global_test_mask
+            exclude_mask=global_graph.global_test_mask
         )
 
     global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
