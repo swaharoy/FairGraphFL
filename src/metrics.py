@@ -75,8 +75,8 @@ def collect_client_incentives(clients: list[Client]):
     # combine the data so each row represents a round
     combined_data = []
     for r in range(num_rounds):
-        rep_r = [client.reputation[r + 1] for client in clients] # skip first idx in reputation (1/N)
-        pay_r = [client.payoff[r] for client in clients]
+        rep_r = [client.reputation[r + 1].item() for client in clients] # skip first idx in reputation (1/N)
+        pay_r = [client.payoff[r].item() for client in clients]
         combined_data.append(rep_r + pay_r)
         
     # create the MultiIndex DataFrame
