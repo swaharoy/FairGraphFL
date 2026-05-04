@@ -123,7 +123,7 @@ def compute_server_stats(server: Server, num_classes, num_node_features):
 
 
 def collect_all_metrics(server: Server, clients: list[Client], num_classes, num_node_features, incentives=False):
-   """
+    """
     Collects all metrics from both the server and clients.
 
     Args:
@@ -137,12 +137,15 @@ def collect_all_metrics(server: Server, clients: list[Client], num_classes, num_
         tuple: (server_stats, client_stats, client_incentives) DataFrames.
     """
    
-   server_stats = compute_server_stats(server, num_classes, num_node_features)
-   client_stats = compute_client_stats(clients, server.client_diversity) if incentives else None
-   client_incentives = collect_client_incentives(clients)
+    server_stats = compute_server_stats(server, num_classes, num_node_features)
+    client_stats = compute_client_stats(clients, server.client_diversity)
+    client_incentives = collect_client_incentives(clients) if incentives else None
 
-   print(server_stats)
-   print(client_stats)
-   print(client_incentives)
+    print("--- SERVER STATS --- \n")
+    print(server_stats)
+    print("--- CLIENT STATS --- \n")
+    print(client_stats)
+    print("--- INCENTIVES --- \n")
+    print(client_incentives)
 
-   return server_stats, client_stats, client_incentives
+    return server_stats, client_stats, client_incentives
