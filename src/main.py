@@ -134,8 +134,10 @@ def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client
     for idx, subgraph in enumerate(subgraphs):
         
         if args.model == "GCN":
+            print("client model: GCN")
             model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
         else:
+            print("client model: GIN")
             model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
 
 
@@ -154,11 +156,14 @@ def init_server(global_graph, num_classes, num_node_features, args):
     Returns:
         Server: The instantiated central server object.
     """
-    if args.model == "serverGIN":    
+    if args.model == "serverGIN": 
+        print("server model: server GIN")
         model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
     elif args.model == "GCN":
+        print("server model: GCN")
         model =  GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
     else:
+        print("server model: GIN")
         model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
 
     return Server(model=model, graph=global_graph, device=args.device)

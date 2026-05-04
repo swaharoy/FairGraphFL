@@ -52,10 +52,12 @@ def fedavg(clients: list[Client], server: Server, communication_rounds, local_ep
         print(f"Client {client.id} train size: {client.train_size}")
         client.download_weights_from_server(server)
 
+        print("local adaptation training")
+        client.local_train(10)
+
     metrics_df = collect_and_print_client_and_server_metrics(clients, server)
     return metrics_df
 
-def fedavg(clients: list[Client], server: Server, communication_rounds, local_epoch, with_prototypes = False, frac=1.0):
     """
     Executes the FedAvg training loop.
 
