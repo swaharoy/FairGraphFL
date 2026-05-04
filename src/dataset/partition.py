@@ -156,7 +156,7 @@ def build_subgraph(graph, node_ids):
     )
 
     subgraph.num_inter_edges = inter_mask.sum().item() // 2
-
+    subgraph.n_id = node_ids
 
     return subgraph
 

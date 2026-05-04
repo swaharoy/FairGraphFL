@@ -45,9 +45,17 @@ def create_local_split(data, seed, train_ratio, val_ratio, exclude_mask):
     Creates local train/val/test masks ONLY from nodes not in the exclude_mask.
     """
     num_nodes = data.num_nodes
+
+    # map global test mask to the subgraph's local indices
+    if hasattr(data, 'n_id'):
+        global_indices = data.n_id #
+    else:
+        raise AttributeError("The subgraph does not have the 'n_id' attribute to map global node indices.")
+    
     
     # find indices of nodes that are NOT in the global test set
-    eligible_nodes = torch.nonzero(~exclude_mask, as_tuple=True)[0]
+    local_nodes_in_test = exclude_mask[global_indices] 
+    eligible_nodes = torch.nonzero(~local_nodes_in_test, as_tuple=True)[0]
     num_eligible = len(eligible_nodes)
     
     # shuffle only the eligible nodes
