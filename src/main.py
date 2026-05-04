@@ -133,7 +133,7 @@ def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client
 
     for idx, subgraph in enumerate(subgraphs):
 
-        model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
+        model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
         # model = GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
 
 
@@ -142,7 +142,7 @@ def init_clients(subgraphs, num_classes, num_node_features, args) -> list[Client
 
     return clients
 
-def init_server(num_classes, num_node_features, args):
+def init_server(global_graph, num_classes, num_node_features, args):
     """
     Initializes the central server that handles global aggregation.
 
@@ -153,10 +153,10 @@ def init_server(num_classes, num_node_features, args):
         Server: The instantiated central server object.
     """
 
-    model = serverGIN(nlayer=args.nlayer, nhid=args.hidden)
+    model = GIN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer, dropout= args.dropout)
     # model =  GCN(nfeat= num_node_features, nhid= args.hidden, nclass= num_classes, nlayer= args.nlayer,dropout= args.dropout)
   
-    return Server(model, args.device)
+    return Server(model=model, graph=global_graph, device=args.device)
 
 if __name__ == '__main__':
     args = parse_args()
@@ -169,7 +169,7 @@ if __name__ == '__main__':
     if args.training == "central":
         args.num_clients = 1
         
-    subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
+    global_graph, subgraphs, global_stats, subgraph_stats, num_classes, num_node_features = setup_dataset(args.dataset, num_clients=args.num_clients, partition_method= args.partition, seed = args.seed, split_seed=split_seed)
     args.num_classes = num_classes
     
     print(f"Subgraph construction from dataset {args.dataset} complete.")
@@ -185,8 +185,8 @@ if __name__ == '__main__':
     # print(f"Wrote to {outf_global} and {outf_subgraph}")
  
 
-    clients = init_clients(subgraphs, num_classes, num_node_features, args)
-    server = init_server(num_classes, num_node_features, args)
+    clients = init_clients(subgraphs=subgraphs, num_classes=num_classes, num_node_features=num_node_features, args=args)
+    server = init_server(graph=global_graph, num_classes=num_classes, num_node_features=num_node_features, args=args)
 
     if args.skip_client:
         if args.skip_client_idx >= args.num_clients:

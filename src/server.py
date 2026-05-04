@@ -20,7 +20,7 @@ class Server():
         model (torch.nn.Module): The global graph neural network model.
         W (dict): A dictionary referencing the model's named parameters.
     """
-    def __init__(self, model, device):
+    def __init__(self, model, graph, device):
         """
         Initializes the Server.
 
@@ -30,6 +30,7 @@ class Server():
         """
         self.device = device
         self.model = model.to(self.device)
+        self.graph = graph
         self.W = {key: value for key, value in self.model.named_parameters()}  # points to named_parameters()
 
         self.vocab = {} # motif_key: count_across_all_clients
