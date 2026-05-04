@@ -23,54 +23,60 @@ torch.serialization.add_safe_globals([
     torch_geometric.data.storage.GlobalStorage
 ])
 
-
-def split_train_val_test(data, seed, train_ratio=0.2, val_ratio=0.35):
+def create_global_test_mask(data, seed, test_ratio=0.10):
     """
-    Creates randomized train, validation, and test masks for a global graph.
-
-    Args:
-        data (torch_geometric.data.Data): The input graph data.
-        seed (int): Random seed for reproducibility.
-        train_ratio (float): Proportion of nodes to use for training.
-        val_ratio (float): Proportion of nodes to use for validation.
-
-    Returns:
-        torch_geometric.data.Data: The updated data object with masks attached.
+    Creates a strict global test mask before partitioning.
+    These nodes will be excluded from local training.
     """
+    g = torch.Generator().manual_seed(seed)
+    perm = torch.randperm(data.num_nodes, generator=g)
+    
+    n_test = int(test_ratio * data.num_nodes)
+    test_idx = perm[:n_test]
+    
+    global_test_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
+    global_test_mask[test_idx] = True
+    
+    data.global_test_mask = global_test_mask
+    return data
 
+def create_local_split(data, seed, train_ratio, val_ratio, exclude_mask):
+    """
+    Creates local train/val/test masks ONLY from nodes not in the exclude_mask.
+    """
     num_nodes = data.num_nodes
-
-    # reproducibility
-    g = torch.Generator()
-    g.manual_seed(seed)
-
-    # random permutation of all nodes
-    perm = torch.randperm(num_nodes, generator=g)
-
-    # compute sizes
+    
+    # find indices of nodes that are NOT in the global test set
+    eligible_nodes = torch.nonzero(~exclude_mask, as_tuple=True)[0]
+    num_eligible = len(eligible_nodes)
+    
+    # shuffle only the eligible nodes
+    g = torch.Generator().manual_seed(seed)
+    perm = torch.randperm(num_eligible, generator=g)
+    shuffled_eligible = eligible_nodes[perm]
+    
+    # calculate sizes (relative to the whole subgraph to hit target ratios)
     n_train = int(train_ratio * num_nodes)
     n_val = int(val_ratio * num_nodes)
+    
+    # ensure we don't try to assign more nodes than are eligible
+    if n_train + n_val > num_eligible:
+        n_train = int(num_eligible * 0.6) # Fallback to 60/20/20 of remaining
+        n_val = int(num_eligible * 0.2)
+        
+    train_idx = shuffled_eligible[:n_train]
+    val_idx = shuffled_eligible[n_train:n_train + n_val]
+    test_idx = shuffled_eligible[n_train + n_val:] # Remaining eligible become local test
+    
+    # create local masks
+    data.train_mask = torch.zeros(num_nodes, dtype=torch.bool)
+    data.val_mask = torch.zeros(num_nodes, dtype=torch.bool)
+    data.test_mask = torch.zeros(num_nodes, dtype=torch.bool)
 
-    # split indices
-    train_idx = perm[:n_train]
-    val_idx = perm[n_train:n_train + n_val]
-    test_idx = perm[n_train + n_val:]
-
-    # initialize masks
-    train_mask = torch.zeros(num_nodes, dtype=torch.bool)
-    val_mask = torch.zeros(num_nodes, dtype=torch.bool)
-    test_mask = torch.zeros(num_nodes, dtype=torch.bool)
-
-    # assign
-    train_mask[train_idx] = True
-    val_mask[val_idx] = True
-    test_mask[test_idx] = True
-
-    # attach to data
-    data.train_mask = train_mask
-    data.val_mask = val_mask
-    data.test_mask = test_mask
-
+    data.train_mask[train_idx] = True
+    data.val_mask[val_idx] = True
+    data.test_mask[test_idx] = True
+    
     return data
 
 def compute_graph_stats(global_graph, subgraphs, undirected=True):
@@ -192,7 +198,7 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
     """
     global_graph, num_classes, num_node_features  = get_data(dataset_name)
 
-    global_graph = split_train_val_test(global_graph, split_seed)
+    global_graph = create_global_test_mask(global_graph, seed=split_seed, test_ratio=0.1)  
 
     if num_clients == 1:
         global_graph.num_inter_edges = 0
@@ -203,7 +209,7 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
     # determine split ratios based on dataset
     if dataset_name == 'ogbn-arxiv':
         train_ratio = 0.05
-        val_ratio = 47.5
+        val_ratio = 0.475
     else:
         train_ratio = 0.20
         val_ratio = 0.40
@@ -212,11 +218,12 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
     for i in range(len(subgraphs)):
         # We add 'i' to the split_seed so that if two subgraphs happen to 
         # have the exact same number of nodes, they get differently randomized masks
-        subgraphs[i] = split_train_val_test(
+        subgraphs[i] = create_local_split(
             subgraphs[i], 
             seed=(split_seed + i), 
             train_ratio=train_ratio, 
-            val_ratio=val_ratio
+            val_ratio=val_ratio,
+            exclude_mask=subgraphs[i].global_test_mask
         )
 
     global_stats, client_stats = compute_graph_stats(global_graph, subgraphs)
