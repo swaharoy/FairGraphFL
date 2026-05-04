@@ -274,7 +274,7 @@ def setup_dataset(dataset_name, num_clients, partition_method, seed, split_seed)
 
     # apply the train/val/test splits PER SUBGRAPH
     if len(subgraphs) == 1:
-        subgraphs[i] = split_train_val_test(data=subgraphs[0], seed = split_seed, train_ratio=train_ratio, val_ratio=val_ratio)
+        subgraphs[0] = split_train_val_test(data=subgraphs[0], seed = split_seed, train_ratio=train_ratio, val_ratio=val_ratio)
     else:
         for i in range(len(subgraphs)):
             # We add 'i' to the split_seed so that if two subgraphs happen to 
