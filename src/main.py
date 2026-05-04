@@ -105,7 +105,7 @@ def save_experiment_dataframes(args, server_stats, client_stats, client_incentiv
     # Save the dataframes
     server_stats.to_csv(os.path.join(args.outbase, f'{prefix}_server.csv'), index=False)
     client_stats.to_csv(os.path.join(args.outbase, f'{prefix}_client.csv'), index=False)
-    if client_incentives:
+    if client_incentives is not None:
         client_incentives.to_csv(os.path.join(args.outbase, f'{prefix}_incentives.csv'), index=False)
     
     # Save a hyperparameters text file for easy scanning later
