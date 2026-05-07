@@ -34,4 +34,4 @@ After running the programme, the results are stored in the `./outputs` folder. O
 
 ### Acknowledgement
 Some of the implementation is adopted from the following sources [Federated Graph Classification over Non-IID Graphs](https://github.com/Oxfordblue7/GCFL), [Towards Fair Graph Federated Learning via Incentive Mechanisms
-](https://github.com/zjunet/FairGraphFL), [Personalized Subgraph Federated Learning] (https://github.com/JinheonBaek/FED-PUB)
+](https://github.com/zjunet/FairGraphFL), [Personalized Subgraph Federated Learning](https://github.com/JinheonBaek/FED-PUB)
